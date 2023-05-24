@@ -1,1 +1,29 @@
+# Папки
+obj/
+bin/
+PublishOutput/
+logs/
 /build
+
+# Файлы
+*.user
+*.suo
+*.bak
+*.tmp
+
+# Файлы конфигурации
+appsettings.json
+appsettings.Development.json
+appsettings.Production.json
+secrets.json
+
+# Visual Studio файлы
+.vs/
+*.sln.ide
+*.sln.docstates
+
+# Dependency directories
+/packages/
+/bower_components/
+/node_modules/
+/.paket/
