@@ -1,0 +1,26 @@
+﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=21d56cf0_002D7f01_002D4669_002Db665_002D14c4ae36cf75/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="TestTimerLeftEvent #2" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+  &lt;TestAncestor&gt;
+    &lt;TestId&gt;xUnit::29AD5C26-A792-4AD3-A99D-543B19167096::net7.0::GameServer.test.SocketTest.TestTimerLeftEvent&lt;/TestId&gt;
+  &lt;/TestAncestor&gt;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=2bc085b6_002D0717_002D4893_002Dba36_002D6b9125f017ae/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="TestTimerLeftEvent #3" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+  &lt;TestAncestor&gt;
+    &lt;TestId&gt;xUnit::29AD5C26-A792-4AD3-A99D-543B19167096::net7.0::GameServer.test.SocketTest.TestTimerLeftEvent&lt;/TestId&gt;
+  &lt;/TestAncestor&gt;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=525987b2_002D3201_002D4e97_002Db7d1_002D23c370c49f78/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="TestTimerLeftEvent" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+  &lt;TestAncestor&gt;
+    &lt;TestId&gt;xUnit::29AD5C26-A792-4AD3-A99D-543B19167096::net7.0::GameServer.test.SocketTest.TestTimerLeftEvent&lt;/TestId&gt;
+  &lt;/TestAncestor&gt;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=6a61ad83_002Db8af_002D4506_002D9e4d_002D8e9e6719759d/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="TestTimerLeftEvent #4" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+  &lt;TestAncestor&gt;
+    &lt;TestId&gt;xUnit::29AD5C26-A792-4AD3-A99D-543B19167096::net7.0::SocketTest&lt;/TestId&gt;
+  &lt;/TestAncestor&gt;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=ba1c420d_002D2063_002D4b56_002Dac5c_002D0818cfdb0bc9/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="SocketTest" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;
+  &lt;TestAncestor&gt;
+    &lt;TestId&gt;xUnit::29AD5C26-A792-4AD3-A99D-543B19167096::net7.0::GameServer.test.SocketTest&lt;/TestId&gt;
+  &lt;/TestAncestor&gt;
+&lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>

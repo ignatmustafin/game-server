@@ -1,0 +1,31 @@
+version: '3.9'
+services:
+  webapp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5157:5157"
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - migrator
+    command: sh -c "dotnet /app/build/GameServer.dll"
+  
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_USER: macbookair
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: game
+    ports:
+      - 6543:5432
+
+  migrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+    command: sh -c "echo $(pwd) && dotnet tool install --global dotnet-ef && export PATH="$PATH:/root/.dotnet/tools" && dotnet ef database update"
+
