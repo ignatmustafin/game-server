@@ -1,12 +1,12 @@
-using GameServer.Postgres.Models;
+using GameServer.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace GameServer.Postgres;
 
 public class AppDbContext : DbContext
 {
-    public DbSet<Lobby> Lobby { get; set; }
-    
+    public DbSet<Player> Player { get; set; }
+
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }

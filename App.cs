@@ -1,23 +1,36 @@
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Hosting;
+using GameServer.Postgres;
+using Microsoft.EntityFrameworkCore;
+using GameServer;
+using GameServer.Endpoints;
+using GameServer.Services.Auth;
+using GameServer.SocketServer;
 
-namespace GameServer
-{
+var builder = WebApplication.CreateBuilder(args);
 
-    public class Program
-    {
-        public static void Main(string[] args)
-        {
-            CreateHostBuilder(args).Build().Run();
-        }
+builder.Services.AddControllers();
+builder.Services.AddMvc();
+builder.Services.AddControllers();
+builder.Services.AddSingleton<SocketServer>();
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql("Host=localhost;Port=5432;Database=game;Username=macbookair;Password=admin"));
+builder.Services.AddAutoMapper(typeof(MapperConfig));
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder.UseStartup<Startup>();
-                    webBuilder.UseUrls("http://*:5157");
-                });
-    }
-}
+var app = builder.Build();
+
+// if (app.Environment.IsDevelopment())
+// {
+    app.UseSwagger();
+    app.UseSwaggerUI();
+// }
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.ConfigureAuthEndpoints();
+app.UseHttpsRedirection();
+app.Run("http://0.0.0.0:5157");
