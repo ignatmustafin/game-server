@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using GameServer;
 using GameServer.Endpoints;
 using GameServer.Services.Auth;
+using GameServer.Services.Game;
 using GameServer.SocketServer;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,11 +11,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddMvc();
 builder.Services.AddControllers();
-builder.Services.AddSingleton<SocketServer>();
+builder.Services.AddSingleton<SocketServer>(new SocketServer());
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql("Host=localhost;Port=5432;Database=game;Username=macbookair;Password=admin"));
+    options.UseNpgsql());
 builder.Services.AddAutoMapper(typeof(MapperConfig));
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IGameService, GameService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -32,5 +34,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.ConfigureAuthEndpoints();
+app.ConfigureLobbyEndpoints();
+
 app.UseHttpsRedirection();
 app.Run("http://0.0.0.0:5157");

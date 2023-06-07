@@ -8,6 +8,7 @@ public static class AuthEndpoints
 {
     public record ApiError(string Error);
 
+
     public static void ConfigureAuthEndpoints(this WebApplication app)
     {
         app.MapPost("/auth/signUp", SignUp).WithName("SignUp").Accepts<AuthDto.SignUpRequest>("application/json")
@@ -35,7 +36,7 @@ public static class AuthEndpoints
             return Results.BadRequest(new ApiError(e.Message));
         }
     }
-    
+
     private async static Task<IResult> SignIn(IAuthService authRepo,
         [FromBody] AuthDto.SignInRequest model)
     {

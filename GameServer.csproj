@@ -11,6 +11,7 @@
         <PackageReference Include="AutoMapper" Version="12.0.1" />
         <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
         <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.DataAnnotations" Version="2.2.0" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="7.0.5" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.5">
           <PrivateAssets>all</PrivateAssets>
@@ -190,6 +191,27 @@
       <Content Include="bin\Debug\net7.0\zh-Hant\Microsoft.TestPlatform.CrossPlatEngine.resources.dll" />
       <Content Include="bin\Debug\net7.0\zh-Hant\Microsoft.VisualStudio.TestPlatform.Common.resources.dll" />
       <Content Include="bin\Debug\net7.0\zh-Hant\Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll" />
+      <Content Remove="GameServerTests\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="GameServerTests\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="GameServerTests\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="GameServerTests\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="GameServerTests\bin\Debug\net7.0\GameServerTests.deps.json" />
+      <_ContentIncludedByDefault Remove="GameServerTests\bin\Debug\net7.0\GameServerTests.runtimeconfig.json" />
+      <_ContentIncludedByDefault Remove="GameServerTests\obj\GameServerTests.csproj.nuget.dgspec.json" />
+      <_ContentIncludedByDefault Remove="GameServerTests\obj\project.assets.json" />
+      <_ContentIncludedByDefault Remove="GameServerTests\obj\project.packagespec.json" />
     </ItemGroup>
 
 </Project>

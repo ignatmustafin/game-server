@@ -1,24 +1,23 @@
-using System.ComponentModel.DataAnnotations;
+using System.ComponentModel;
 using System.Text.Json.Serialization;
-using Microsoft.EntityFrameworkCore;
 
 namespace GameServer.Models;
 
-[Index(nameof(Email), IsUnique = true)]
 public class Player
 {
-    [JsonPropertyName("Id")]
-    public int Id { get; set; }
+    [JsonPropertyName("Id")] public int Id { get; set; }
+
+    [JsonPropertyName("GameId")] public int GameId { get; set; }
+    public Game Game { get; set; } = null!;
+
+    [JsonPropertyName("UserId")] public int UserId { get; set; }
+    public User User { get; set; } = null!;
+
+    [JsonPropertyName("IsLoaded")] public bool IsLoaded { get; set; }
+
+    [JsonPropertyName("Hp")] public int Hp { get; set; } = 30;
+
+    [JsonPropertyName("Mana")] public int Mana { get; set; } = 1;
     
-    [JsonPropertyName("Name")]
-    [Required]
-    public string Name { get; set; }
-    
-    [JsonPropertyName("Email")]
-    [Required]
-    public string Email { get; set; }
-    
-    [JsonPropertyName("Password")]
-    [Required]
-    public string Password { get; set; }
+    public ICollection<PlayerCard> CardsInHand { get; } = new List<PlayerCard>();
 }

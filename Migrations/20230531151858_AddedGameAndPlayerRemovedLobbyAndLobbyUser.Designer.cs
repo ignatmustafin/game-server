@@ -3,6 +3,7 @@ using System;
 using GameServer.Postgres;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GameServer.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20230531151858_AddedGameAndPlayerRemovedLobbyAndLobbyUser")]
+    partial class AddedGameAndPlayerRemovedLobbyAndLobbyUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,35 +24,6 @@ namespace GameServer.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("GameServer.Models.Card", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("Damage")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Hp")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Manacost")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Card");
-                });
 
             modelBuilder.Entity("GameServer.Models.Game", b =>
                 {
@@ -116,29 +90,6 @@ namespace GameServer.Migrations
                     b.HasAnnotation("Relational:JsonPropertyName", "Players");
                 });
 
-            modelBuilder.Entity("GameServer.Models.PlayerCard", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CardId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("PlayerId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CardId");
-
-                    b.HasIndex("PlayerId");
-
-                    b.ToTable("PlayerCard");
-                });
-
             modelBuilder.Entity("GameServer.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -190,33 +141,9 @@ namespace GameServer.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("GameServer.Models.PlayerCard", b =>
-                {
-                    b.HasOne("GameServer.Models.Card", "Card")
-                        .WithMany()
-                        .HasForeignKey("CardId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GameServer.Models.Player", "Player")
-                        .WithMany("CardsInHand")
-                        .HasForeignKey("PlayerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Card");
-
-                    b.Navigation("Player");
-                });
-
             modelBuilder.Entity("GameServer.Models.Game", b =>
                 {
                     b.Navigation("Players");
-                });
-
-            modelBuilder.Entity("GameServer.Models.Player", b =>
-                {
-                    b.Navigation("CardsInHand");
                 });
 #pragma warning restore 612, 618
         }

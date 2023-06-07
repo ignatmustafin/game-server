@@ -9,3 +9,5 @@
 *.suo
 *.bak
 *.tmp
+/GameServerTests/bin/
+/GameServerTests/obj/
