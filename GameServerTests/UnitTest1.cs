@@ -19,6 +19,8 @@ public class Tests
 {
     private record GameData(PlayerData PlayerData, EnemyData EnemyData);
 
+    private record testRequest(int PlayerId, int CardId, string field);
+
     private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
     private SocketIOClient _socket1;
     private SocketIOClient _socket2;
@@ -111,12 +113,12 @@ public class Tests
         TaskCompletionSource<bool> socket2EventReceived = new TaskCompletionSource<bool>(false);
 
         // Console.WriteLine(socket1EventReceived.Task.Result);
-        _socket1.On("all_users_joined_lobby", () =>
+        _socket1.Once("all_users_joined_lobby", () =>
         {
             socket1EventReceived.SetResult(true);
         });
 
-        _socket2.On("all_users_joined_lobby", () =>
+        _socket2.Once("all_users_joined_lobby", () =>
         {
             socket2EventReceived.SetResult(true);
         });
@@ -159,13 +161,13 @@ public class Tests
         TaskCompletionSource<bool> socket1EventReceived = new TaskCompletionSource<bool>(false);
         TaskCompletionSource<bool> socket2EventReceived = new TaskCompletionSource<bool>(false);
         
-        _socket1.On("update_game_data",  (JToken[] data) =>
+        _socket1.Once("update_game_data",  (JToken[] data) =>
         {
             player1GameData = data[0].ToObject<GameData>();
             socket1EventReceived.SetResult(true);
         });
 
-        _socket2.On("update_game_data", (JToken[] data) =>
+        _socket2.Once("update_game_data", (JToken[] data) =>
         {
             player2GameData = data[0].ToObject<GameData>();
             socket2EventReceived.SetResult(true);
@@ -194,12 +196,12 @@ public class Tests
         Assert.That(player1Data.Name, Is.EqualTo("Ignat"));
         Assert.That(player1Data.Hp, Is.EqualTo(30));
         Assert.That(player1Data.Mana, Is.EqualTo(1));
-        Assert.That(player1Data.CardsInHand, Is.EqualTo(new List<Card>()));
+        Assert.That(player1Data.CardsInHand.Count, Is.EqualTo(3));
         
         Assert.That(player1EnemyData.Name, Is.EqualTo("Sasha"));
         Assert.That(player1EnemyData.Hp, Is.EqualTo(30));
         Assert.That(player1EnemyData.Mana, Is.EqualTo(1));
-        Assert.That(player1EnemyData.CardsInHandCount, Is.EqualTo(0));
+        Assert.That(player1EnemyData.CardsInHandCount, Is.EqualTo(3));
     }
     
     [Test, Order(8)]
@@ -210,12 +212,117 @@ public class Tests
         Assert.That(player2Data.Name, Is.EqualTo("Sasha"));
         Assert.That(player2Data.Hp, Is.EqualTo(30));
         Assert.That(player2Data.Mana, Is.EqualTo(1));
-        Assert.That(player2Data.CardsInHand, Is.EqualTo(new List<Card>()));
+        Assert.That(player2Data.CardsInHand.Count, Is.EqualTo(3));
         
         Assert.That(player2EnemyData.Name, Is.EqualTo("Ignat"));
         Assert.That(player2EnemyData.Hp, Is.EqualTo(30));
         Assert.That(player2EnemyData.Mana, Is.EqualTo(1));
-        Assert.That(player2EnemyData.CardsInHandCount, Is.EqualTo(0));
+        Assert.That(player2EnemyData.CardsInHandCount, Is.EqualTo(3));
+    }
+    
+    [Test, Order(9)]
+    [Timeout(5000)]
+    public async Task ThrowCardByPlayer1()
+    {
+        TaskCompletionSource<bool> socket1EventReceived = new TaskCompletionSource<bool>(false);
+        TaskCompletionSource<bool> socket2EventReceived = new TaskCompletionSource<bool>(false);
+        
+        _socket1.Once("update_game_data",  (JToken[] data) =>
+        {
+            player1GameData = data[0].ToObject<GameData>();
+            socket1EventReceived.SetResult(true);
+        });
+
+        _socket2.Once("update_game_data", (JToken[] data) =>
+        {
+            player2GameData = data[0].ToObject<GameData>();
+            socket2EventReceived.SetResult(true);
+        });
+        
+        
+        var json = JsonConvert.SerializeObject(new GameDto.CardThrownRequest(player1Id, 1, CardIn.Field1));
+        Console.WriteLine(json);
+        var body = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await _client.PostAsync("http://localhost:5157/game/card-thrown", body);
+        response.EnsureSuccessStatusCode();
+        string responseBody = await response.Content.ReadAsStringAsync();
+        var responseObject = JsonConvert.DeserializeObject<GameDto.CardThrownResponse>(responseBody);
+
+        Assert.IsTrue(responseObject.Success);
+        await Task.WhenAll(socket1EventReceived.Task, socket2EventReceived.Task);
+        Assert.IsTrue(socket1EventReceived.Task.Result);
+        Assert.IsTrue(socket2EventReceived.Task.Result);
+        
+    }
+
+    [Test, Order(10)]
+    [Timeout(5000)]
+    public void CheckPlayerDataAfterCardThrown()
+    {
+        player1Data = player1GameData.PlayerData;
+        player1EnemyData = player1GameData.EnemyData;
+        player2Data = player2GameData.PlayerData;
+        player2EnemyData = player2GameData.EnemyData;
+        
+        Assert.That(player1Data.CardsInHand.Count, Is.EqualTo(2));
+        Assert.That(player1Data.Field1, Is.TypeOf<Card>());
+        
+        Assert.That(player2Data.CardsInHand.Count, Is.EqualTo(3));
+        Assert.That(player2Data.Field1, Is.Null);
+
+        Assert.That(player1EnemyData.CardsInHandCount, Is.EqualTo(3));
+        Assert.That(player1EnemyData.Field1, Is.Null);
+        
+        Assert.That(player2EnemyData.CardsInHandCount, Is.EqualTo(2));
+        Assert.That(player2EnemyData.Field1, Is.TypeOf<Card>());
+    }
+    
+    [Test, Order(11)]
+    [Timeout(5000)]
+    public async Task Player1EndTurn()
+    {
+        var json = JsonConvert.SerializeObject(new GameDto.EndTurnRequest(player1Id));
+        var body = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await _client.PostAsync("http://localhost:5157/game/turn-ended", body);
+        response.EnsureSuccessStatusCode();
+        string responseBody = await response.Content.ReadAsStringAsync();
+        var responseObject = JsonConvert.DeserializeObject<GameDto.EndTurnResponse>(responseBody);
+
+        Assert.IsTrue(responseObject.Success);
+    }
+    
+    [Test, Order(12)]
+    [Timeout(5000)]
+    public async Task Player2EndTurn()
+    {
+        TaskCompletionSource<bool> socket1EventReceived = new TaskCompletionSource<bool>(false);
+        TaskCompletionSource<bool> socket2EventReceived = new TaskCompletionSource<bool>(false);
+        
+        _socket1.Once("turn_ended",  () =>
+        {
+            socket1EventReceived.SetResult(true);
+        });
+
+        _socket2.Once("turn_ended", () =>
+        {
+            socket2EventReceived.SetResult(true);
+        });
+        
+        
+        var json = JsonConvert.SerializeObject(new GameDto.EndTurnRequest(player2Id));
+        var body = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await _client.PostAsync("http://localhost:5157/game/turn-ended", body);
+        response.EnsureSuccessStatusCode();
+        string responseBody = await response.Content.ReadAsStringAsync();
+        var responseObject = JsonConvert.DeserializeObject<GameDto.EndTurnResponse>(responseBody);
+
+        Assert.IsTrue(responseObject.Success);
+        await Task.WhenAll(socket1EventReceived.Task, socket2EventReceived.Task);
+        Assert.IsTrue(socket1EventReceived.Task.Result);
+        Assert.IsTrue(socket2EventReceived.Task.Result);
     }
 
 }

@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GameServer.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20230601154037_AddCardAndPlayerCard")]
-    partial class AddCardAndPlayerCard
+    [Migration("20230615190233_TurnEndedAdded")]
+    partial class TurnEndedAdded
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -83,30 +83,39 @@ namespace GameServer.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasAnnotation("Relational:JsonPropertyName", "Id");
+                        .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("Field1CardId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Field2CardId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Field3CardId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Field4CardId")
+                        .HasColumnType("integer");
+
                     b.Property<int>("GameId")
-                        .HasColumnType("integer")
-                        .HasAnnotation("Relational:JsonPropertyName", "GameId");
+                        .HasColumnType("integer");
 
                     b.Property<int>("Hp")
-                        .HasColumnType("integer")
-                        .HasAnnotation("Relational:JsonPropertyName", "Hp");
+                        .HasColumnType("integer");
 
                     b.Property<bool>("IsLoaded")
-                        .HasColumnType("boolean")
-                        .HasAnnotation("Relational:JsonPropertyName", "IsLoaded");
+                        .HasColumnType("boolean");
 
                     b.Property<int>("Mana")
-                        .HasColumnType("integer")
-                        .HasAnnotation("Relational:JsonPropertyName", "Mana");
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("TurnEnded")
+                        .HasColumnType("boolean");
 
                     b.Property<int>("UserId")
-                        .HasColumnType("integer")
-                        .HasAnnotation("Relational:JsonPropertyName", "UserId");
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -129,6 +138,12 @@ namespace GameServer.Migrations
 
                     b.Property<int>("CardId")
                         .HasColumnType("integer");
+
+                    b.Property<int>("CardIn")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("PlayerId")
                         .HasColumnType("integer");
@@ -202,7 +217,7 @@ namespace GameServer.Migrations
                         .IsRequired();
 
                     b.HasOne("GameServer.Models.Player", "Player")
-                        .WithMany("CardsInHand")
+                        .WithMany("Cards")
                         .HasForeignKey("PlayerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -219,7 +234,7 @@ namespace GameServer.Migrations
 
             modelBuilder.Entity("GameServer.Models.Player", b =>
                 {
-                    b.Navigation("CardsInHand");
+                    b.Navigation("Cards");
                 });
 #pragma warning restore 612, 618
         }

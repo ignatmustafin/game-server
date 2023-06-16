@@ -19,7 +19,13 @@ public static class LobbyEndpoints
             .Produces<GameDto.JoinGameResponse>().Produces<ApiError>(400);
         app.MapPost("/game/loaded-game", LoadGame).WithName("loaded-game")
             .Accepts<GameDto.IsLoadedRequest>("application/json")
-            .Produces<GameDto.IsLoadedResponse>().Produces<ApiError>(400);
+            .Produces<GameDto.IsLoadedResponse>().Produces<ApiError>(400); 
+        app.MapPost("/game/card-thrown", ThrowCard).WithName("card-thrown")
+            .Accepts<GameDto.CardThrownRequest>("application/json")
+            .Produces<GameDto.CardThrownResponse>().Produces<ApiError>(400);
+        app.MapPost("/game/turn-ended", EndTurn).WithName("turn-ended")
+            .Accepts<GameDto.EndTurnRequest>("application/json")
+            .Produces<GameDto.EndTurnResponse>().Produces<ApiError>(400);
     }
 
     private async static Task<IResult> CreateGame(IGameService gameService,
@@ -59,6 +65,34 @@ public static class LobbyEndpoints
         }
         catch (Exception e)
         {
+            return Results.BadRequest(new ApiError(e.Message));
+        }
+    }
+
+    private async static Task<IResult> ThrowCard(IGameService gameService, [FromBody] GameDto.CardThrownRequest body)
+    {
+        try
+        {
+            GameDto.CardThrownResponse response = await gameService.CardThrown(body);
+            return Results.Ok(response);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return Results.BadRequest(new ApiError(e.Message));
+        }
+    }
+    
+    private async static Task<IResult> EndTurn(IGameService gameService, [FromBody] GameDto.EndTurnRequest body)
+    {
+        try
+        {
+            GameDto.EndTurnResponse response = await gameService.EndTurn(body);
+            return Results.Ok(response);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
             return Results.BadRequest(new ApiError(e.Message));
         }
     }

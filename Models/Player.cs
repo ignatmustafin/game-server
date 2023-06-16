@@ -1,23 +1,26 @@
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
 namespace GameServer.Models;
 
 public class Player
 {
-    [JsonPropertyName("Id")] public int Id { get; set; }
-
-    [JsonPropertyName("GameId")] public int GameId { get; set; }
+    public int Id { get; set; }
+    public int GameId { get; set; }
     public Game Game { get; set; } = null!;
-
-    [JsonPropertyName("UserId")] public int UserId { get; set; }
+    public int UserId { get; set; }
     public User User { get; set; } = null!;
+    public bool IsLoaded { get; set; }
+    public bool TurnEnded { get; set; }
+    public int Hp { get; set; } = 30;
+    public int Mana { get; set; } = 1;
+    public int? Field1CardId { get; set; }
 
-    [JsonPropertyName("IsLoaded")] public bool IsLoaded { get; set; }
+    public int? Field2CardId { get; set; }
 
-    [JsonPropertyName("Hp")] public int Hp { get; set; } = 30;
+    public int? Field3CardId { get; set; }
 
-    [JsonPropertyName("Mana")] public int Mana { get; set; } = 1;
-    
-    public ICollection<PlayerCard> CardsInHand { get; } = new List<PlayerCard>();
+    public int? Field4CardId { get; set; }
+    public ICollection<PlayerCard> Cards { get; } = new List<PlayerCard>();
 }

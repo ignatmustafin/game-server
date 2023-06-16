@@ -1,4 +1,4 @@
-﻿using GameServer.Models;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -7,12 +7,34 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GameServer.Migrations
 {
     /// <inheritdoc />
-    public partial class AddCardAndPlayerCard : Migration
+    public partial class unionPlayerCardAndPlayerUpdated : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("CREATE TYPE cardtype AS ENUM ('Straight', 'Left', 'Right', 'All')");
+            migrationBuilder.AddColumn<int>(
+                name: "Field1CardId",
+                table: "Player",
+                type: "integer",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "Field2CardId",
+                table: "Player",
+                type: "integer",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "Field3CardId",
+                table: "Player",
+                type: "integer",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "Field4CardId",
+                table: "Player",
+                type: "integer",
+                nullable: true);
 
             migrationBuilder.CreateTable(
                 name: "Card",
@@ -21,7 +43,7 @@ namespace GameServer.Migrations
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Name = table.Column<string>(type: "text", nullable: false),
-                    Type = table.Column<CardType>(type: "cardtype", nullable: false),
+                    Type = table.Column<int>(type: "integer", nullable: false),
                     Manacost = table.Column<int>(type: "integer", nullable: false),
                     Hp = table.Column<int>(type: "integer", nullable: false),
                     Damage = table.Column<int>(type: "integer", nullable: false)
@@ -30,7 +52,6 @@ namespace GameServer.Migrations
                 {
                     table.PrimaryKey("PK_Card", x => x.Id);
                 });
-            
 
             migrationBuilder.CreateTable(
                 name: "PlayerCard",
@@ -39,7 +60,9 @@ namespace GameServer.Migrations
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     PlayerId = table.Column<int>(type: "integer", nullable: false),
-                    CardId = table.Column<int>(type: "integer", nullable: false)
+                    CardId = table.Column<int>(type: "integer", nullable: false),
+                    CardIn = table.Column<int>(type: "integer", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -72,16 +95,27 @@ namespace GameServer.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-
             migrationBuilder.DropTable(
                 name: "PlayerCard");
 
             migrationBuilder.DropTable(
                 name: "Card");
-            
-            migrationBuilder.Sql("DROP TYPE cardtype");
 
+            migrationBuilder.DropColumn(
+                name: "Field1CardId",
+                table: "Player");
+
+            migrationBuilder.DropColumn(
+                name: "Field2CardId",
+                table: "Player");
+
+            migrationBuilder.DropColumn(
+                name: "Field3CardId",
+                table: "Player");
+
+            migrationBuilder.DropColumn(
+                name: "Field4CardId",
+                table: "Player");
         }
-        
     }
 }

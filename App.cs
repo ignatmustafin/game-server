@@ -37,4 +37,5 @@ app.ConfigureAuthEndpoints();
 app.ConfigureLobbyEndpoints();
 
 app.UseHttpsRedirection();
+app.UseCors(corsBuilder => corsBuilder.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 app.Run("http://0.0.0.0:5157");

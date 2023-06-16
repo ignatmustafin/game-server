@@ -72,6 +72,7 @@ public class SocketServer
     
     public void SendToClient(int socketId, string eventName, params object[] data)
     {
+        Console.WriteLine($"EVENT SENDED TO {socketId}");
         var client = _clientSocketIds.FirstOrDefault(x => x.Value == socketId).Key;
         if (client != null)
         {

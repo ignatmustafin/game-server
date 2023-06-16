@@ -12,7 +12,6 @@ public enum CardType
 
 public class Card
 {
-    
     public int Id { get; set; }
     [Required] public string Name { get; set; }
     [Required] [EnumDataType(typeof(CardType))] public CardType Type { get; set; }
