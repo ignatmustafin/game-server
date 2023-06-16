@@ -11,7 +11,7 @@ public static class LobbyEndpoints
 
     public static void ConfigureLobbyEndpoints(this WebApplication app)
     {
-        app.MapPost("/game/create-game", CreateGame).WithName("create-lobby")
+        app.MapPost("/game/create-game", CreateGame).WithName("create-game")
             .Accepts<GameDto.CreateGameRequest>("application/json")
             .Produces<GameDto.CreateGameResponse>(201).Produces<ApiError>(400);
         app.MapPost("/game/join-game", JoinGame).WithName("join-game")

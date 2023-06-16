@@ -5,6 +5,7 @@ using GameServer.Endpoints;
 using GameServer.Services.Auth;
 using GameServer.Services.Game;
 using GameServer.SocketServer;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,7 +20,10 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGameService, GameService>();
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SchemaGeneratorOptions.CustomTypeMappings.Add(typeof(AuthEndpoints.ApiError), () => new OpenApiSchema { /* настройки схемы для ApiError */ });
+});
 
 
 var app = builder.Build();
