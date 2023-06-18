@@ -22,11 +22,5 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // modelBuilder.Entity<Card>(card =>
-        // {
-        //     card.Property(c => c.Type).HasConversion(
-        //         v => (CardType) Enum.Parse(typeof(CardType), v));
-        //     ;
-        // });
     }
 }

@@ -23,5 +23,11 @@ public class PlayerCard
     [Required] 
     [EnumDataType(typeof(CardIn))]
     public CardIn CardIn { get; set; }
-    public DateTime? DeletedAt { get; set; }
+
+    public bool IsDead { get; set; }
+    public int Manacost { get; set; }
+    public int Hp { get; set; }
+    public int Damage { get; set; }
+    public string Name { get; set; }
+    [EnumDataType(typeof(CardType))] public CardType Type { get; set; }
 }
