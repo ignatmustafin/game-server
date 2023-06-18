@@ -4,6 +4,7 @@ using System.Runtime.InteropServices.JavaScript;
 using GameServer.DTO.Game;
 using GameServer.Models;
 using GameServer.Postgres;
+using GameServer.Socket;
 using Microsoft.EntityFrameworkCore;
 
 namespace GameServer.Services.Game;
@@ -11,7 +12,7 @@ namespace GameServer.Services.Game;
 public class GameService : IGameService
 {
     private readonly AppDbContext _db;
-    private readonly SocketServer.SocketServer _socketService;
+    private readonly SocketServerHub _socketService;
 
 
     // public record DamageToPlayer(int Field, Player AttackingPlayer, PlayerCard AttackingCard, Player PlayerUnderAttack);
@@ -22,7 +23,7 @@ public class GameService : IGameService
 
     public record CardIsDead(int Field, Player PlayerUnderAttack);
 
-    public GameService(AppDbContext db, SocketServer.SocketServer socketServer)
+    public GameService(AppDbContext db, SocketServerHub socketServer)
     {
         _db = db;
         _socketService = socketServer;

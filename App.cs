@@ -4,15 +4,16 @@ using GameServer;
 using GameServer.Endpoints;
 using GameServer.Services.Auth;
 using GameServer.Services.Game;
-using GameServer.SocketServer;
+using GameServer.Socket;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddMvc();
-builder.Services.AddControllers();
-builder.Services.AddSingleton<SocketServer>(new SocketServer());
+builder.Services.AddSignalR();
+
+builder.Services.AddSingleton(new SocketServerHub());
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql());
 builder.Services.AddAutoMapper(typeof(MapperConfig));
@@ -28,11 +29,18 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+
 // if (app.Environment.IsDevelopment())
 // {
     app.UseSwagger();
     app.UseSwaggerUI();
 // }
+
+app.UseHttpsRedirection();
+app.UseRouting();
+
+app.MapHub<SocketServerHub>("/socket");
+
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -40,6 +48,5 @@ app.UseAuthorization();
 app.ConfigureAuthEndpoints();
 app.ConfigureLobbyEndpoints();
 
-app.UseHttpsRedirection();
-app.UseCors(corsBuilder => corsBuilder.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+app.UseCors(corsBuilder => corsBuilder.WithOrigins("http://localhost:5173").AllowAnyHeader().AllowAnyMethod().AllowCredentials());
 app.Run("http://0.0.0.0:5157");

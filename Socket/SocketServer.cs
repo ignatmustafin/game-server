@@ -1,82 +1,60 @@
-using System;
-using System.Diagnostics;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using Newtonsoft.Json.Linq;
-using SocketIOSharp.Common;
-using SocketIOSharp.Server;
-using SocketIOSharp.Server.Client;
+using Microsoft.AspNetCore.SignalR;
 
-namespace GameServer.SocketServer;
-
-public class SocketServer
+namespace GameServer.Socket
 {
-    private SocketIOServer _socketServer;
-    private Dictionary<SocketIOSocket, int> _clientSocketIds;
-
-    public SocketServer()
+    public class SocketServerHub : Hub
     {
-        // Создание и настройка экземпляра сервера Socket.IO
-        _socketServer = new SocketIOServer(new SocketIOServerOption(3000));
-        _clientSocketIds = new Dictionary<SocketIOSocket, int>();
+        private Dictionary<string, int> _clientSocketIds = new Dictionary<string, int>();
 
-        _socketServer.OnConnection((SocketIOSocket socket) =>
+        public void SetUserId(int id)
         {
-            Console.WriteLine($"Clients connected! {socket.Server.ClientsCounts}");
+            var connectionId = Context.ConnectionId;
+            _clientSocketIds[connectionId] = id;
+            Clients.Client(connectionId).SendAsync("socket_id_saved");
+            Console.WriteLine($"LENGTH! {_clientSocketIds.Count}");
+        }
 
-            // var id = socket.GetHashCode();
-            // _clientSocketIds.Add(socket, id);
-
-            socket.Emit("connect");
-
-            socket.On("set_user_id", (JToken[] data) =>
-            {
-                var id = data[0].Value<int>();
-                _clientSocketIds.Add(socket, id);
-                socket.Emit("socket_id_saved");
-                Console.WriteLine($"LENGTH! {_clientSocketIds.Count}");
-            });
-
-            socket.On(SocketIOEvent.DISCONNECT, () =>
-            {
-                _clientSocketIds.Remove(socket);
-                Console.WriteLine($"Client disconnected! {_clientSocketIds.Count}");
-            });
-        });
-
-        // Запуск сервера Socket.IO
-        _socketServer.Start();
-        Console.WriteLine($"Server started {_socketServer.Option.Port}");
-    }
-
-    public void SendToAllClients(JToken eventName, params object[] data)
-    {
-        Console.WriteLine("HERE IN FUNC EMIT");
-        _socketServer.Emit(eventName, data);
-    }
-
-    public void SendToClientsInList(int[] socketIdList, string eventName, params object[] data)
-    {
-        foreach (var socketId in socketIdList)
+        public override Task OnConnectedAsync()
         {
-            var client = _clientSocketIds.FirstOrDefault(x => x.Value == socketId).Key;
-            Console.WriteLine(client);
-            if (client != null)
+            Console.WriteLine($"Client connected! {_clientSocketIds.Count}");
+            return base.OnConnectedAsync();
+        }
+
+        public override Task OnDisconnectedAsync(Exception exception)
+        {
+            var connectionId = Context.ConnectionId;
+            _clientSocketIds.Remove(connectionId);
+            Console.WriteLine($"Client disconnected! {_clientSocketIds.Count}");
+            return base.OnDisconnectedAsync(exception);
+        }
+
+        public void SendToAllClients(string eventName, params object[] data)
+        {
+            Console.WriteLine("HERE IN FUNC EMIT");
+            Clients.All.SendAsync(eventName, data);
+        }
+
+        public void SendToClientsInList(int[] socketIdList, string eventName, params object[] data)
+        {
+            foreach (var socketId in socketIdList)
             {
-                Console.WriteLine("EMITTED");
-                client.Emit(eventName, data);
+                var client = _clientSocketIds.FirstOrDefault(x => x.Value == socketId);
+                if (client.Key != null)
+                {
+                    Console.WriteLine("EMITTED");
+                    Clients.Client(client.Key).SendAsync(eventName, data);
+                }
             }
         }
-    }
-    
-    public void SendToClient(int socketId, string eventName, params object[] data)
-    {
-        Console.WriteLine($"EVENT SENDED TO {socketId}");
-        var client = _clientSocketIds.FirstOrDefault(x => x.Value == socketId).Key;
-        if (client != null)
+
+        public void SendToClient(int socketId, string eventName, params object[] data)
         {
-            client.Emit(eventName, data);
+            Console.WriteLine($"EVENT SENT TO {socketId}");
+            var client = _clientSocketIds.FirstOrDefault(x => x.Value == socketId);
+            if (client.Key != null)
+            {
+                Clients.Client(client.Key).SendAsync(eventName, data);
+            }
         }
     }
 }
