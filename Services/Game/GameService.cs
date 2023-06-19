@@ -73,7 +73,7 @@ public class GameService : IGameService
 
         if (game.Players.Count >= 2)
         {
-            _socketService.SendToClientsInList(playerListIds, "all_users_joined_lobby");
+            _socketService.SendToClientsInList(playerListIds, "all_users_joined_lobby", new {GameId = game.Id});
         }
 
         GameDto.JoinGameResponse response = new GameDto.JoinGameResponse(newPlayer.Entity.Id);
