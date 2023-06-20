@@ -6,10 +6,10 @@ namespace GameServer.DTO.Game;
 public class GameDto
 {
     public record CreateGameRequest(int UserId);
-    public record CreateGameResponse(Guid Link, int PlayerId);
+    public record CreateGameResponse(Guid Link, int PlayerId, int GameId);
     
     public record JoinGameRequest(Guid Link, int UserId);
-    public record JoinGameResponse(int PlayerId);
+    public record JoinGameResponse(int PlayerId, int GameId);
     
     public record IsLoadedRequest(int PlayerId, int GameId);
     public record IsLoadedResponse(bool Success = true);

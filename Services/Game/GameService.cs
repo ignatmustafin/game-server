@@ -48,7 +48,7 @@ public class GameService : IGameService
         var newPlayer = await _db.Player.AddAsync(player);
         await _db.SaveChangesAsync();
 
-        GameDto.CreateGameResponse response = new GameDto.CreateGameResponse(newGame.Entity.Link, newPlayer.Entity.Id);
+        GameDto.CreateGameResponse response = new GameDto.CreateGameResponse(newGame.Entity.Link, newPlayer.Entity.Id, newGame.Entity.Id);
         return response;
     }
 
@@ -76,7 +76,7 @@ public class GameService : IGameService
             _socketService.SendToClientsInList(playerListIds, "all_users_joined_lobby", new {GameId = game.Id});
         }
 
-        GameDto.JoinGameResponse response = new GameDto.JoinGameResponse(newPlayer.Entity.Id);
+        GameDto.JoinGameResponse response = new GameDto.JoinGameResponse(newPlayer.Entity.Id, game.Id);
         return response;
     }
 

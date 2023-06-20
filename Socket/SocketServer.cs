@@ -30,7 +30,7 @@ namespace GameServer.Socket
 
         public void SendToAllClients(string eventName, params object[] data)
         {
-            Console.WriteLine("HERE IN FUNC EMIT");
+            Console.WriteLine($"EVENT {eventName} SENDED TO ALL CLIENTS");
             Clients.All.SendAsync(eventName, data);
         }
 
@@ -41,7 +41,7 @@ namespace GameServer.Socket
                 var client = _clientSocketIds.FirstOrDefault(x => x.Value == socketId);
                 if (client.Key != null)
                 {
-                    Console.WriteLine("EMITTED");
+                    Console.WriteLine($"EVENT {eventName} SENDED TO Clients in list with id {socketId}");
                     Clients.Client(client.Key).SendAsync(eventName, data);
                 }
             }
@@ -49,10 +49,10 @@ namespace GameServer.Socket
 
         public void SendToClient(int socketId, string eventName, params object[] data)
         {
-            Console.WriteLine($"EVENT SENT TO {socketId}");
             var client = _clientSocketIds.FirstOrDefault(x => x.Value == socketId);
             if (client.Key != null)
             {
+                Console.WriteLine($"EVENT {eventName} SENDED TO Client with id {socketId}");
                 Clients.Client(client.Key).SendAsync(eventName, data);
             }
         }
