@@ -21,6 +21,7 @@ public class GameService : IGameService
         public int GameId;
     }
 
+    private static readonly object LoadGameLock = new object(); // Объект блокировки
 
     // public record DamageToPlayer(int Field, Player AttackingPlayer, PlayerCard AttackingCard, Player PlayerUnderAttack);
 
@@ -81,7 +82,8 @@ public class GameService : IGameService
 
         if (game.Players.Count >= 2)
         {
-            await _socketService.SendToClientsInList(playerListIds,"all_users_joined_lobby", new TestObject() {GameId = game.Id});
+            await _socketService.SendToClientsInList(playerListIds, "all_users_joined_lobby",
+                new TestObject() {GameId = game.Id});
         }
 
         GameDto.JoinGameResponse response = new GameDto.JoinGameResponse(newPlayer.Entity.Id, game.Id);
@@ -90,59 +92,61 @@ public class GameService : IGameService
 
     public async Task<GameDto.IsLoadedResponse> LoadGame(GameDto.IsLoadedRequest isLoadedRequest)
     {
-        var game = await _db.Game
-            .Include(g => g.Players)
-            .ThenInclude(p => p.User).Include(g => g.Players)
-            .ThenInclude(p => p.Cards)
-            .ThenInclude(pc => pc.Card)
-            .FirstOrDefaultAsync(g => g.Id == isLoadedRequest.GameId);
-
-        if (game == null)
-        {
-            throw new Exception("Game not found");
-        }
-
-        var player = game.Players.FirstOrDefault(p => p.Id == isLoadedRequest.PlayerId);
+        var player = _db.Player.FirstOrDefault(p => p.Id == isLoadedRequest.PlayerId);
 
         if (player == null)
         {
             throw new Exception("Player not found");
         }
 
-        player.IsLoaded = true;
-
-        var randomCards = GetRandomCards(game, 3);
-
-        foreach (var c in randomCards)
+        lock (LoadGameLock)
         {
-            PlayerCard playerCard = new PlayerCard
+            player.IsLoaded = true;
+
+            _db.SaveChanges();
+
+            var game = _db.Game
+                .Include(g => g.Players)
+                .ThenInclude(p => p.User).Include(g => g.Players)
+                .ThenInclude(p => p.Cards)
+                .ThenInclude(pc => pc.Card)
+                .FirstOrDefault(g => g.Id == isLoadedRequest.GameId);
+
+            var allPlayersLoaded = CheckAllPlayersLoaded(game);
+
+            var randomCards = GetRandomCards(game, 3);
+
+            foreach (var c in randomCards)
             {
-                CardId = c.Id,
-                PlayerId = player.Id,
-                Manacost = c.Manacost,
-                Hp = c.Hp,
-                Damage = c.Damage,
-                Name = c.Name,
-                Type = c.Type
-            };
-            await _db.PlayerCard.AddAsync(playerCard);
+                PlayerCard playerCard = new PlayerCard
+                {
+                    CardId = c.Id,
+                    PlayerId = player.Id,
+                    Manacost = c.Manacost,
+                    Hp = c.Hp,
+                    Damage = c.Damage,
+                    Name = c.Name,
+                    Type = c.Type
+                };
+                _db.PlayerCard.Add(playerCard);
+            }
+
+            _db.SaveChanges(); // Сохранение изменений перед коммитом транзакции
+
+
+            if (allPlayersLoaded)
+            {
+                SetGameData(game);
+            }
         }
-
-        await _db.SaveChangesAsync();
-
-        var allPlayersLoaded = CheckAllPlayersLoaded(game);
-        if (allPlayersLoaded)
-        {
-            await SetGameData(game);
-        }
-
 
         return new GameDto.IsLoadedResponse();
     }
 
     private bool CheckAllPlayersLoaded(Models.Game game)
     {
-        return game.Players.Count == 2;
+        Console.WriteLine($"LOADED PLAYERS COUNT {game.Players.Count(p => p.IsLoaded)}");
+        return game.Players.Count(p => p.IsLoaded) == 2;
     }
 
     public async Task<GameDto.CardThrownResponse> CardThrown(GameDto.CardThrownRequest cardThrownRequest)
@@ -156,9 +160,10 @@ public class GameService : IGameService
         {
             throw new Exception("Player not found");
         }
-        
-        Console.WriteLine($"QWE TEST HERE CARD ID {cardThrownRequest.CardId} {cardThrownRequest.PlayerId} {cardThrownRequest.Field}");
-        
+
+        Console.WriteLine(
+            $"QWE TEST HERE CARD ID {cardThrownRequest.CardId} {cardThrownRequest.PlayerId} {cardThrownRequest.Field}");
+
         var playerCard = player.Cards.FirstOrDefault(pc => pc.Id == cardThrownRequest.CardId);
 
         Console.WriteLine($"NEXT LOG {player.Cards.Count}");
@@ -167,9 +172,9 @@ public class GameService : IGameService
         {
             throw new Exception("Card not found");
         }
-        
+
         playerCard.CardIn = cardThrownRequest.Field;
-        
+
 
         await _db.SaveChangesAsync();
 
@@ -224,7 +229,8 @@ public class GameService : IGameService
                 Name = enemyPlayer.User.Name,
                 Hp = enemyPlayer.Hp,
                 Mana = enemyPlayer.Mana,
-                CardsInHandCount = enemyPlayer.Cards.Count(pc => pc.CardIn == CardIn.Hand && pc.IsDead == false),
+                CardsInHand = enemyPlayer.Cards.Where(pc => pc.CardIn == CardIn.Hand && pc.IsDead == false)
+                    .Select(pc => new GameDto.EnemyCardType() {Type = pc.Type}).ToList(),
                 Field1 = enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field1 && pc.IsDead == false),
                 Field2 = enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field2 && pc.IsDead == false),
                 Field3 = enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field3 && pc.IsDead == false),
@@ -232,7 +238,7 @@ public class GameService : IGameService
             };
 
             var gameData = new GameDto.GameData(playerData, enemyData);
-            
+
             await _socketService.SendToClient(currentPlayer.UserId, "update_game_data",
                 gameData);
             playerIndex++;
@@ -439,7 +445,7 @@ public class GameService : IGameService
 
             if (player2.Hp < 1)
             {
-               await  _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "player_win",
+                await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "player_win",
                     player1.Id);
                 game.IsFinished = true;
                 break;

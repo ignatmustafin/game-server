@@ -230,7 +230,7 @@ public class Tests
         Assert.That(player1EnemyData.Name, Is.EqualTo("Sasha"));
         Assert.That(player1EnemyData.Hp, Is.EqualTo(30));
         Assert.That(player1EnemyData.Mana, Is.EqualTo(1));
-        Assert.That(player1EnemyData.CardsInHandCount, Is.EqualTo(3));
+        Assert.That(player1EnemyData.CardsInHand.Count, Is.EqualTo(3));
     }
     
     [Test, Order(8)]
@@ -246,7 +246,7 @@ public class Tests
         Assert.That(player2EnemyData.Name, Is.EqualTo("Ignat"));
         Assert.That(player2EnemyData.Hp, Is.EqualTo(30));
         Assert.That(player2EnemyData.Mana, Is.EqualTo(1));
-        Assert.That(player2EnemyData.CardsInHandCount, Is.EqualTo(3));
+        Assert.That(player2EnemyData.CardsInHand.Count, Is.EqualTo(3));
     }
     
     [Test, Order(9)]
@@ -307,10 +307,10 @@ public class Tests
         Assert.That(player2Data.CardsInHand.Count, Is.EqualTo(3));
         Assert.That(player2Data.Field1, Is.Null);
     
-        Assert.That(player1EnemyData.CardsInHandCount, Is.EqualTo(3));
+        Assert.That(player1EnemyData.CardsInHand.Count, Is.EqualTo(3));
         Assert.That(player1EnemyData.Field1, Is.Null);
         
-        Assert.That(player2EnemyData.CardsInHandCount, Is.EqualTo(2));
+        Assert.That(player2EnemyData.CardsInHand.Count, Is.EqualTo(2));
         Assert.That(player2EnemyData.Field1, Is.TypeOf<PlayerCard>());
     }
     
