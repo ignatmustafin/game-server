@@ -231,10 +231,10 @@ public class GameService : IGameService
                 Mana = enemyPlayer.Mana,
                 CardsInHand = enemyPlayer.Cards.Where(pc => pc.CardIn == CardIn.Hand && pc.IsDead == false)
                     .Select(pc => new GameDto.EnemyCardType() {Type = pc.Type}).ToList(),
-                Field1 = enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field1 && pc.IsDead == false),
-                Field2 = enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field2 && pc.IsDead == false),
-                Field3 = enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field3 && pc.IsDead == false),
-                Field4 = enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field4 && pc.IsDead == false)
+                Field1 = GetEnemyField(CardIn.Field1, enemyPlayer),
+                Field2 = GetEnemyField(CardIn.Field2, enemyPlayer),
+                Field3 = GetEnemyField(CardIn.Field3, enemyPlayer),
+                Field4 = GetEnemyField(CardIn.Field4, enemyPlayer)
             };
 
             var gameData = new GameDto.GameData(playerData, enemyData);
@@ -655,5 +655,22 @@ public class GameService : IGameService
         return filteredCards
             .OrderBy(c => Guid.NewGuid())
             .Take(cardsCount);
+    }
+
+    private GameDto.CardBase GetEnemyField(CardIn field, Player enemyPlayer)
+    {
+        var enemyCard = enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field && !pc.IsDead);
+
+        if (enemyCard == null)
+        {
+            return null;
+        }
+
+        if (enemyCard.SideState == SideState.Back)
+        {
+            return new GameDto.EnemyCardType() {Type = enemyCard.Type};
+        }
+
+        return enemyCard;
     }
 }
