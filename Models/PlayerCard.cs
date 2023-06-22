@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Newtonsoft.Json;
 
 namespace GameServer.Models;
 
@@ -16,10 +17,10 @@ public class PlayerCard
     public int Id { get; set; }
     [Required]
     public int PlayerId { get; set; }
-    public Player Player { get; set; }
+    [JsonIgnore] public Player Player { get; set; }
     [Required]
     public int CardId { get; set; }
-    public Card Card { get; set; }
+    [JsonIgnore] public Card Card { get; set; }
     [Required] 
     [EnumDataType(typeof(CardIn))]
     public CardIn CardIn { get; set; }

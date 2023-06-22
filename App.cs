@@ -4,7 +4,7 @@ using GameServer;
 using GameServer.Endpoints;
 using GameServer.Services.Auth;
 using GameServer.Services.Game;
-using GameServer.Socket;
+using GameServer.Services.SignalR;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);

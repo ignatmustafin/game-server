@@ -1,10 +1,12 @@
 using System.Collections;
 using System.Linq;
 using System.Runtime.InteropServices.JavaScript;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using GameServer.DTO.Game;
 using GameServer.Models;
 using GameServer.Postgres;
-using GameServer.Socket;
+using GameServer.Services.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace GameServer.Services.Game;
@@ -14,11 +16,16 @@ public class GameService : IGameService
     private readonly AppDbContext _db;
     private readonly SocketServerHub _socketService;
 
+    public class TestObject
+    {
+        public int GameId;
+    }
+
 
     // public record DamageToPlayer(int Field, Player AttackingPlayer, PlayerCard AttackingCard, Player PlayerUnderAttack);
 
     public record CardAttack(int Field, Player AttackingPlayer, PlayerCard AttackingCard, Player PlayerUnderAttack,
-        PlayerCard[] 
+        PlayerCard[]
             CardUnderAttack);
 
     public record CardIsDead(int Field, Player PlayerUnderAttack);
@@ -48,7 +55,8 @@ public class GameService : IGameService
         var newPlayer = await _db.Player.AddAsync(player);
         await _db.SaveChangesAsync();
 
-        GameDto.CreateGameResponse response = new GameDto.CreateGameResponse(newGame.Entity.Link, newPlayer.Entity.Id, newGame.Entity.Id);
+        GameDto.CreateGameResponse response =
+            new GameDto.CreateGameResponse(newGame.Entity.Link, newPlayer.Entity.Id, newGame.Entity.Id);
         return response;
     }
 
@@ -73,7 +81,7 @@ public class GameService : IGameService
 
         if (game.Players.Count >= 2)
         {
-            _socketService.SendToClientsInList(playerListIds, "all_users_joined_lobby", new {GameId = game.Id});
+            await _socketService.SendToClientsInList(playerListIds,"all_users_joined_lobby", new TestObject() {GameId = game.Id});
         }
 
         GameDto.JoinGameResponse response = new GameDto.JoinGameResponse(newPlayer.Entity.Id, game.Id);
@@ -88,18 +96,19 @@ public class GameService : IGameService
             .ThenInclude(p => p.Cards)
             .ThenInclude(pc => pc.Card)
             .FirstOrDefaultAsync(g => g.Id == isLoadedRequest.GameId);
-        
+
         if (game == null)
         {
             throw new Exception("Game not found");
         }
+
         var player = game.Players.FirstOrDefault(p => p.Id == isLoadedRequest.PlayerId);
-        
+
         if (player == null)
         {
             throw new Exception("Player not found");
         }
-        
+
         player.IsLoaded = true;
 
         var randomCards = GetRandomCards(game, 3);
@@ -120,13 +129,13 @@ public class GameService : IGameService
         }
 
         await _db.SaveChangesAsync();
-        
+
         var allPlayersLoaded = CheckAllPlayersLoaded(game);
         if (allPlayersLoaded)
         {
-            SetGameData(game);
+            await SetGameData(game);
         }
-        
+
 
         return new GameDto.IsLoadedResponse();
     }
@@ -140,17 +149,27 @@ public class GameService : IGameService
     {
         Console.WriteLine("IN FUNC CARD THROWN");
         var player = await _db.Player
-            .Include(p => p.Cards
-                .Where(pc =>
-                    pc.CardIn == CardIn.Hand && pc.PlayerId == cardThrownRequest.PlayerId &&
-                    pc.CardId == cardThrownRequest.CardId))
+            .Include(p => p.Cards)
             .FirstOrDefaultAsync(p => p.Id == cardThrownRequest.PlayerId);
 
-        foreach (var playerCard in player.Cards)
+        if (player == null)
         {
-            player.Field1CardId = playerCard.CardId;
-            playerCard.CardIn = cardThrownRequest.Field;
+            throw new Exception("Player not found");
         }
+        
+        Console.WriteLine($"QWE TEST HERE CARD ID {cardThrownRequest.CardId} {cardThrownRequest.PlayerId} {cardThrownRequest.Field}");
+        
+        var playerCard = player.Cards.FirstOrDefault(pc => pc.Id == cardThrownRequest.CardId);
+
+        Console.WriteLine($"NEXT LOG {player.Cards.Count}");
+
+        if (playerCard == null)
+        {
+            throw new Exception("Card not found");
+        }
+        
+        playerCard.CardIn = cardThrownRequest.Field;
+        
 
         await _db.SaveChangesAsync();
 
@@ -167,22 +186,23 @@ public class GameService : IGameService
             throw new Exception("game not found");
         }
 
-        SetGameData(game);
+        await SetGameData(game);
 
         return new GameDto.CardThrownResponse();
     }
 
-    private void SetGameData(Models.Game game)
+    private async Task SetGameData(Models.Game game)
     {
         int playerIndex = 0;
         foreach (var currentPlayer in game.Players)
         {
             Console.WriteLine(
-                $"DATA: {currentPlayer.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field1 && pc.IsDead == false)?.Card}");
+                $"Cards in hand count for player {currentPlayer.Id} -- {currentPlayer.Cards.Where(pc => pc.CardIn == CardIn.Hand && pc.IsDead == false).ToList().Count}");
             foreach (var pc in currentPlayer.Cards)
             {
                 Console.WriteLine($"player card id: {pc} with type: {pc.CardIn}");
             }
+
 
             var playerData = new GameDto.PlayerData
             {
@@ -211,8 +231,10 @@ public class GameService : IGameService
                 Field4 = enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field4 && pc.IsDead == false)
             };
 
-            _socketService.SendToClient(currentPlayer.UserId, "update_game_data",
-                new GameDto.GameData(playerData, enemyData));
+            var gameData = new GameDto.GameData(playerData, enemyData);
+            
+            await _socketService.SendToClient(currentPlayer.UserId, "update_game_data",
+                gameData);
             playerIndex++;
         }
     }
@@ -230,10 +252,10 @@ public class GameService : IGameService
         await _db.SaveChangesAsync();
         var game = await AllPlayersEndedTurn(player.GameId);
 
-        if (game != null)
-        {
-            await StartBattle(game);
-        }
+        // if (game != null)
+        // {
+        //     await StartBattle(game);
+        // }
 
         return new GameDto.EndTurnResponse();
     }
@@ -250,7 +272,7 @@ public class GameService : IGameService
         if (game != null && game.Players.Count == 2)
         {
             int[] playerListIds = game.Players.Select(p => p.UserId).ToArray();
-            _socketService.SendToClientsInList(playerListIds, "turn_ended");
+            await _socketService.SendToClientsInList(playerListIds, "turn_ended");
             return game;
         }
 
@@ -320,12 +342,12 @@ public class GameService : IGameService
                                 field.Hp -= p1CurrentCard.Damage;
                             }
                         }
-                        
+
                         await _db.SaveChangesAsync();
                         _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
                             "card_attack",
                             new CardAttack(i, player1, p1CurrentCard, player2, fieldsToAttack));
-                        
+
                         break;
                     }
                     case CardType.Left:
@@ -346,12 +368,12 @@ public class GameService : IGameService
                                 field.Hp -= p1CurrentCard.Damage;
                             }
                         }
-                        
+
                         await _db.SaveChangesAsync();
                         _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
                             "card_attack",
                             new CardAttack(i, player1, p1CurrentCard, player2, fieldsToAttack));
-                        
+
                         break;
                     }
                     case CardType.Right:
@@ -372,9 +394,9 @@ public class GameService : IGameService
                                 field.Hp -= p1CurrentCard.Damage;
                             }
                         }
-                        
+
                         await _db.SaveChangesAsync();
-                        _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
+                        await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
                             "card_attack",
                             new CardAttack(i, player1, p1CurrentCard, player2, fieldsToAttack));
 
@@ -404,9 +426,9 @@ public class GameService : IGameService
                                 field.Hp -= p1CurrentCard.Damage;
                             }
                         }
-                        
+
                         await _db.SaveChangesAsync();
-                        _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
+                        await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
                             "card_attack",
                             new CardAttack(i, player1, p1CurrentCard, player2, fieldsToAttack));
 
@@ -414,10 +436,11 @@ public class GameService : IGameService
                     }
                 }
             }
-            
+
             if (player2.Hp < 1)
             {
-                _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "player_win", player1.Id);
+               await  _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "player_win",
+                    player1.Id);
                 game.IsFinished = true;
                 break;
             }
@@ -444,8 +467,9 @@ public class GameService : IGameService
                                 field.Hp -= p2CurrentCard.Damage;
                             }
                         }
+
                         await _db.SaveChangesAsync();
-                        _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
+                        await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
                             "card_attack",
                             new CardAttack(i, player2, p2CurrentCard, player1, fieldsToAttack));
 
@@ -469,9 +493,9 @@ public class GameService : IGameService
                                 field.Hp -= p2CurrentCard.Damage;
                             }
                         }
-                        
+
                         await _db.SaveChangesAsync();
-                        _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
+                        await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
                             "card_attack",
                             new CardAttack(i, player2, p2CurrentCard, player1, fieldsToAttack));
 
@@ -495,9 +519,9 @@ public class GameService : IGameService
                                 field.Hp -= p2CurrentCard.Damage;
                             }
                         }
-                        
+
                         await _db.SaveChangesAsync();
-                        _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
+                        await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
                             "card_attack",
                             new CardAttack(i, player2, p2CurrentCard, player1, fieldsToAttack));
 
@@ -526,11 +550,10 @@ public class GameService : IGameService
                             {
                                 field.Hp -= p2CurrentCard.Damage;
                             }
-                            
                         }
-                        
+
                         await _db.SaveChangesAsync();
-                        _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
+                        await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
                             "card_attack",
                             new CardAttack(i, player2, p2CurrentCard, player1, fieldsToAttack));
 
@@ -538,7 +561,7 @@ public class GameService : IGameService
                     }
                 }
             }
-            
+
             for (var j = 0; j < 4; j++)
             {
                 var player1Card = player1Fields[j];
@@ -547,26 +570,27 @@ public class GameService : IGameService
                 if (player1Card.Hp <= 0 && j <= i)
                 {
                     Console.WriteLine("CARD IS DEAD EVENT P1");
-                    _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
+                    await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
                         "card_is_dead", new CardIsDead(j, player2));
                 }
 
                 if (player2Card.Hp <= 0 && j <= i)
                 {
                     Console.WriteLine("CARD IS DEAD EVENT P2");
-                    _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
+                    await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
                         "card_is_dead", new CardIsDead(j, player1));
                 }
             }
-            
+
             if (player1.Hp < 1)
             {
-                _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "player_win", player2.Id);
+                await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "player_win",
+                    player2.Id);
                 game.IsFinished = true;
                 break;
             }
-            
-            SetGameData(game);
+
+            await SetGameData(game);
         }
 
         if (game.IsFinished == false)
@@ -574,7 +598,7 @@ public class GameService : IGameService
             foreach (var player in game.Players)
             {
                 player.TurnEnded = false;
-                
+
                 var randomCards = GetRandomCards(game, 1);
 
                 foreach (var c in randomCards)
@@ -592,9 +616,9 @@ public class GameService : IGameService
                     await _db.PlayerCard.AddAsync(playerCard);
                 }
             }
-            
+
             await _db.SaveChangesAsync();
-            _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "turn_start");
+            // _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "turn_start");
             SetGameData(game);
         }
         else
@@ -614,14 +638,14 @@ public class GameService : IGameService
             Console.WriteLine($"Excluded CARD Id: {test}");
         }
 
-        
+
         Console.WriteLine(filteredCards.Count);
 
         foreach (var test in filteredCards)
         {
             Console.WriteLine($"Included CARD Id: {test.Id}");
         }
-        
+
         return filteredCards
             .OrderBy(c => Guid.NewGuid())
             .Take(cardsCount);

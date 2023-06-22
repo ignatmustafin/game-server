@@ -13,6 +13,7 @@
         <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
         <PackageReference Include="Microsoft.AspNetCore.Cors" Version="2.2.0" />
         <PackageReference Include="Microsoft.AspNetCore.Mvc.DataAnnotations" Version="2.2.0" />
+        <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="7.0.7" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="7.0.5" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.5">
           <PrivateAssets>all</PrivateAssets>
@@ -193,6 +194,7 @@
       <Content Include="bin\Debug\net7.0\zh-Hant\Microsoft.VisualStudio.TestPlatform.Common.resources.dll" />
       <Content Include="bin\Debug\net7.0\zh-Hant\Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll" />
       <Content Remove="GameServerTests\**" />
+      <Content Remove="package-lock.json" />
     </ItemGroup>
 
     <ItemGroup>

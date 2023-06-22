@@ -11,32 +11,40 @@ using GameServer.Services.Game;
 using NLog;
 using System.Threading.Tasks;
 using GameServer.Models;
+using Microsoft.AspNetCore.SignalR.Client;
 
 
 namespace TestProject1;
 
 public class Tests
 {
-    private record GameData(PlayerData PlayerData, EnemyData EnemyData);
-
+    private class Qwe
+    {
+        private int GameId;
+    }
     private record testRequest(int PlayerId, int CardId, string field);
 
     private static readonly ILogger Logger = LogManager.GetCurrentClassLogger();
-    private SocketIOClient _socket1;
-    private SocketIOClient _socket2;
+    private HubConnection connection1;
+    private HubConnection connection2;
     private HttpClient _client = new();
+    private string connection1Id;
 
     private Guid link;
+    private int gameId;
     private int player1Id;
     private int player2Id;
+    private string test;
+    private string qwe;
+    private string asd;
 
-    private GameData player1GameData;
-    private GameData player2GameData;
+    private GameDto.GameData player1GameData;
+    private GameDto.GameData player2GameData;
 
-    private PlayerData player1Data;
-    private EnemyData player1EnemyData;
-    private PlayerData player2Data;
-    private EnemyData player2EnemyData;
+    private GameDto.PlayerData player1Data;
+    private GameDto.EnemyData player1EnemyData;
+    private GameDto.PlayerData player2Data;
+    private GameDto.EnemyData player2EnemyData;
 
     [SetUp]
     public void Setup()
@@ -44,65 +52,75 @@ public class Tests
     }
 
     [Test, Order(1)]
-    public void Test1()
+    [Timeout(5000)]
+    public async Task Test1()
     {
-        _socket1 = new SocketIOClient(new SocketIOClientOption(EngineIOScheme.http, "127.0.0.1", 3000));
-        _socket1.Connect();
+        connection1 = new HubConnectionBuilder()
+            .WithUrl("http://localhost:5157/socket")
+            .Build();
 
-        var connectEventReceived = new AutoResetEvent(false);
+        await connection1.StartAsync();
         
-        _socket1.On("socket_id_saved", () =>
+        Console.WriteLine(connection1.State == HubConnectionState.Connected);
+
+        TaskCompletionSource<bool> socket1EventReceived = new TaskCompletionSource<bool>(false);
+
+        connection1.On<string>("socket_id_saved", (connectionId) =>
         {
-            Console.WriteLine($"Socket 1 user id saved");
-            connectEventReceived.Set();
+            Console.WriteLine($"Socket 1 user id saved {connectionId}");
+            connection1Id = connectionId;
+            socket1EventReceived.SetResult(true);
         });
 
-        _socket1.On("connect", () =>
-        {
-            _socket1.Emit("set_user_id", 1);
-        });
-        
-        Assert.True(connectEventReceived.WaitOne(TimeSpan.FromSeconds(5)));
+        await connection1.InvokeAsync("SetUserId", 1);
+
+
+        Assert.IsTrue(socket1EventReceived.Task.Result);
     }
 
     [Test, Order(2)]
-    public void Test2()
+    [Timeout(5000)]
+    public async Task Test2()
     {
-        _socket2 = new SocketIOClient(new SocketIOClientOption(EngineIOScheme.http, "127.0.0.1", 3000));
-        _socket2.Connect();
-
-        var connectEventReceived = new AutoResetEvent(false);
+        Console.WriteLine(connection1Id);
+        connection2 = new HubConnectionBuilder()
+            .WithUrl("http://localhost:5157/socket")
+            .Build();
         
-        _socket2.On("socket_id_saved", () =>
-        {
-            Console.WriteLine($"Socket 3 user id saved");
-            connectEventReceived.Set();
-        });
+        await connection2.StartAsync();
+        
+        TaskCompletionSource<bool> socket1EventReceived = new TaskCompletionSource<bool>(false);
 
-        _socket2.On("connect", () =>
+        connection2.On<string>("socket_id_saved", (connectionId) =>
         {
-            _socket2.Emit("set_user_id", 3);
+            Console.WriteLine($"Socket 2 user id saved {connectionId}");
+            socket1EventReceived.SetResult(true);
         });
         
-        Assert.True(connectEventReceived.WaitOne(TimeSpan.FromSeconds(5)));
+        await connection2.InvokeAsync("SetUserId", 3);
+        
+        Assert.IsTrue(socket1EventReceived.Task.Result);
     }
 
+    
+
     [Test, Order(3)]
+    [Timeout(5000)]
     public async Task CreateGame()
     {
         var json = JsonConvert.SerializeObject(new GameDto.CreateGameRequest(1));
         var body = new StringContent(json, Encoding.UTF8, "application/json");
-
+    
         var response = await _client.PostAsync("http://localhost:5157/game/create-game", body);
         response.EnsureSuccessStatusCode();
         string responseBody = await response.Content.ReadAsStringAsync();
         var responseObject = JsonConvert.DeserializeObject<GameDto.CreateGameResponse>(responseBody);
-
-
-        Console.WriteLine(responseObject.Link);
-        Assert.IsNotNull(responseObject);
-        link = responseObject.Link;
+        
+        var test = new Guid(responseObject.Link.ToString());
+        link = test;
         player1Id = responseObject.PlayerId;
+        gameId = responseObject.GameId;
+        Assert.IsNotNull(responseObject);
     }
     
     [Test, Order(4)]
@@ -111,27 +129,29 @@ public class Tests
     {
         TaskCompletionSource<bool> socket1EventReceived = new TaskCompletionSource<bool>(false);
         TaskCompletionSource<bool> socket2EventReceived = new TaskCompletionSource<bool>(false);
-
-        // Console.WriteLine(socket1EventReceived.Task.Result);
-        _socket1.Once("all_users_joined_lobby", () =>
+        
+        connection1.On<string>("all_users_joined_lobby", (data) =>
         {
+            Console.WriteLine($"HERE DATA CON1 {data}");
+            test = data;
             socket1EventReceived.SetResult(true);
         });
-
-        _socket2.Once("all_users_joined_lobby", () =>
+    
+        connection2.On<string>("all_users_joined_lobby", (data) =>
         {
+            Console.WriteLine($"HERE DATA CON2 {data}");
             socket2EventReceived.SetResult(true);
         });
-
+        
         var json = JsonConvert.SerializeObject(new GameDto.JoinGameRequest(link, 3));
         var body = new StringContent(json, Encoding.UTF8, "application/json");
-
+    
         var response = await _client.PostAsync("http://localhost:5157/game/join-game", body);
         response.EnsureSuccessStatusCode();
         string responseBody = await response.Content.ReadAsStringAsync();
         var responseObject = JsonConvert.DeserializeObject<GameDto.JoinGameResponse>(responseBody);
-
-
+        
+        
         Assert.IsNotNull(responseObject);
         player2Id = responseObject.PlayerId;
         
@@ -139,13 +159,14 @@ public class Tests
         Assert.IsTrue(socket1EventReceived.Task.Result);
         Assert.IsTrue(socket2EventReceived.Task.Result);
     }
-    
+    //
     [Test, Order(5)]
     public async Task LoadPlayer1()
     {
-        var json = JsonConvert.SerializeObject(new GameDto.IsLoadedRequest(player1Id));
+        Console.WriteLine(test);
+        var json = JsonConvert.SerializeObject(new GameDto.IsLoadedRequest(player1Id, gameId));
         var body = new StringContent(json, Encoding.UTF8, "application/json");
-    
+        
         var response = await _client.PostAsync("http://localhost:5157/game/loaded-game", body);
         response.EnsureSuccessStatusCode();
         string responseBody = await response.Content.ReadAsStringAsync();
@@ -161,22 +182,30 @@ public class Tests
         TaskCompletionSource<bool> socket1EventReceived = new TaskCompletionSource<bool>(false);
         TaskCompletionSource<bool> socket2EventReceived = new TaskCompletionSource<bool>(false);
         
-        _socket1.Once("update_game_data",  (JToken[] data) =>
+        connection1.On<string>("update_game_data",  (data) =>
         {
-            player1GameData = data[0].ToObject<GameData>();
+            var responseObject = JsonConvert.DeserializeObject<GameDto.GameData>(data);
+            if (responseObject != null)
+            {
+                player1GameData = responseObject;
+            }
             socket1EventReceived.SetResult(true);
         });
-
-        _socket2.Once("update_game_data", (JToken[] data) =>
+    
+        connection2.On<string>("update_game_data", (data) =>
         {
-            player2GameData = data[0].ToObject<GameData>();
+            var responseObject = JsonConvert.DeserializeObject<GameDto.GameData>(data);
+            if (responseObject != null)
+            {
+                player2GameData = responseObject;
+            }
             socket2EventReceived.SetResult(true);
         });
         
         
-        var json = JsonConvert.SerializeObject(new GameDto.IsLoadedRequest(player2Id));
+        var json = JsonConvert.SerializeObject(new GameDto.IsLoadedRequest(player2Id, gameId));
         var body = new StringContent(json, Encoding.UTF8, "application/json");
-
+    
         var response = await _client.PostAsync("http://localhost:5157/game/loaded-game", body);
         response.EnsureSuccessStatusCode();
         string responseBody = await response.Content.ReadAsStringAsync();
@@ -187,7 +216,7 @@ public class Tests
         Assert.IsTrue(socket1EventReceived.Task.Result);
         Assert.IsTrue(socket2EventReceived.Task.Result);
     }
-
+    
     [Test, Order(7)]
     public void CheckPlayer1GameData()
     {
@@ -227,35 +256,42 @@ public class Tests
         TaskCompletionSource<bool> socket1EventReceived = new TaskCompletionSource<bool>(false);
         TaskCompletionSource<bool> socket2EventReceived = new TaskCompletionSource<bool>(false);
         
-        _socket1.Once("update_game_data",  (JToken[] data) =>
+        connection1.On<string>("update_game_data",  (data) =>
         {
-            player1GameData = data[0].ToObject<GameData>();
+            var responseObject = JsonConvert.DeserializeObject<GameDto.GameData>(data);
+            if (responseObject != null)
+            {
+                player1GameData = responseObject;
+            }
             socket1EventReceived.SetResult(true);
         });
-
-        _socket2.Once("update_game_data", (JToken[] data) =>
+    
+        connection2.On<string>("update_game_data", (data) =>
         {
-            player2GameData = data[0].ToObject<GameData>();
+            var responseObject = JsonConvert.DeserializeObject<GameDto.GameData>(data);
+            if (responseObject != null)
+            {
+                player2GameData = responseObject;
+            }
             socket2EventReceived.SetResult(true);
         });
         
         
-        var json = JsonConvert.SerializeObject(new GameDto.CardThrownRequest(player1Id, 1, CardIn.Field1));
-        Console.WriteLine(json);
+        var json = JsonConvert.SerializeObject(new GameDto.CardThrownRequest(player1Id, player1Data.CardsInHand.ElementAt(0).Id, CardIn.Field1));
         var body = new StringContent(json, Encoding.UTF8, "application/json");
-
+    
         var response = await _client.PostAsync("http://localhost:5157/game/card-thrown", body);
         response.EnsureSuccessStatusCode();
         string responseBody = await response.Content.ReadAsStringAsync();
         var responseObject = JsonConvert.DeserializeObject<GameDto.CardThrownResponse>(responseBody);
-
+    
         Assert.IsTrue(responseObject.Success);
         await Task.WhenAll(socket1EventReceived.Task, socket2EventReceived.Task);
         Assert.IsTrue(socket1EventReceived.Task.Result);
         Assert.IsTrue(socket2EventReceived.Task.Result);
         
     }
-
+    
     [Test, Order(10)]
     [Timeout(5000)]
     public void CheckPlayerDataAfterCardThrown()
@@ -266,16 +302,16 @@ public class Tests
         player2EnemyData = player2GameData.EnemyData;
         
         Assert.That(player1Data.CardsInHand.Count, Is.EqualTo(2));
-        Assert.That(player1Data.Field1, Is.TypeOf<Card>());
+        Assert.That(player1Data.Field1, Is.TypeOf<PlayerCard>());
         
         Assert.That(player2Data.CardsInHand.Count, Is.EqualTo(3));
         Assert.That(player2Data.Field1, Is.Null);
-
+    
         Assert.That(player1EnemyData.CardsInHandCount, Is.EqualTo(3));
         Assert.That(player1EnemyData.Field1, Is.Null);
         
         Assert.That(player2EnemyData.CardsInHandCount, Is.EqualTo(2));
-        Assert.That(player2EnemyData.Field1, Is.TypeOf<Card>());
+        Assert.That(player2EnemyData.Field1, Is.TypeOf<PlayerCard>());
     }
     
     [Test, Order(11)]
@@ -284,12 +320,12 @@ public class Tests
     {
         var json = JsonConvert.SerializeObject(new GameDto.EndTurnRequest(player1Id));
         var body = new StringContent(json, Encoding.UTF8, "application/json");
-
+    
         var response = await _client.PostAsync("http://localhost:5157/game/turn-ended", body);
         response.EnsureSuccessStatusCode();
         string responseBody = await response.Content.ReadAsStringAsync();
         var responseObject = JsonConvert.DeserializeObject<GameDto.EndTurnResponse>(responseBody);
-
+    
         Assert.IsTrue(responseObject.Success);
     }
     
@@ -300,12 +336,12 @@ public class Tests
         TaskCompletionSource<bool> socket1EventReceived = new TaskCompletionSource<bool>(false);
         TaskCompletionSource<bool> socket2EventReceived = new TaskCompletionSource<bool>(false);
         
-        _socket1.Once("turn_ended",  () =>
+        connection1.On("turn_ended",  () =>
         {
             socket1EventReceived.SetResult(true);
         });
-
-        _socket2.Once("turn_ended", () =>
+    
+        connection2.On("turn_ended", () =>
         {
             socket2EventReceived.SetResult(true);
         });
@@ -313,16 +349,24 @@ public class Tests
         
         var json = JsonConvert.SerializeObject(new GameDto.EndTurnRequest(player2Id));
         var body = new StringContent(json, Encoding.UTF8, "application/json");
-
+    
         var response = await _client.PostAsync("http://localhost:5157/game/turn-ended", body);
         response.EnsureSuccessStatusCode();
         string responseBody = await response.Content.ReadAsStringAsync();
         var responseObject = JsonConvert.DeserializeObject<GameDto.EndTurnResponse>(responseBody);
-
+    
         Assert.IsTrue(responseObject.Success);
         await Task.WhenAll(socket1EventReceived.Task, socket2EventReceived.Task);
         Assert.IsTrue(socket1EventReceived.Task.Result);
         Assert.IsTrue(socket2EventReceived.Task.Result);
     }
-
+    
+    [Test, Order(13)]
+    [Timeout(5000)]
+    public async Task DisposeConnections()
+    {
+        await connection1.DisposeAsync();
+        await Task.Delay(500);
+        await connection2.DisposeAsync();
+    }
 }
