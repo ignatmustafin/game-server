@@ -15,6 +15,8 @@ public class GameService : IGameService
 {
     private readonly AppDbContext _db;
     private readonly SocketServerHub _socketService;
+    private CardIn[] _fieldsList = {CardIn.Field1, CardIn.Field2, CardIn.Field3, CardIn.Field4};
+
 
     public class TestObject
     {
@@ -22,6 +24,7 @@ public class GameService : IGameService
     }
 
     private static readonly object LoadGameLock = new object(); // Объект блокировки
+    private static readonly object EndTurnLock = new object(); // Объект блокировки
 
     // public record DamageToPlayer(int Field, Player AttackingPlayer, PlayerCard AttackingCard, Player PlayerUnderAttack);
 
@@ -29,7 +32,7 @@ public class GameService : IGameService
         PlayerCard[]
             CardUnderAttack);
 
-    public record CardIsDead(int Field, Player PlayerUnderAttack);
+    public record CardIsDead(CardIn Field, Player PlayerUnderAttack);
 
     public GameService(AppDbContext db, SocketServerHub socketServer)
     {
@@ -247,366 +250,164 @@ public class GameService : IGameService
 
     public async Task<GameDto.EndTurnResponse> EndTurn(GameDto.EndTurnRequest endTurnRequest)
     {
-        Console.WriteLine(endTurnRequest.PlayerId);
         var player = await _db.Player.FirstOrDefaultAsync(p => p.Id == endTurnRequest.PlayerId);
         if (player == null)
         {
             throw new Exception("Player not found");
         }
 
-        player.TurnEnded = true;
-        await _db.SaveChangesAsync();
-        var game = await AllPlayersEndedTurn(player.GameId);
+        lock (EndTurnLock)
+        {
+            player.TurnEnded = true;
 
-        // if (game != null)
-        // {
-        //     await StartBattle(game);
-        // }
+            _db.SaveChanges();
+
+            var game = _db.Game
+                .Include(g => g.Players)
+                .ThenInclude(p => p.User).Include(g => g.Players)
+                .ThenInclude(p => p.Cards)
+                .ThenInclude(pc => pc.Card)
+                .FirstOrDefault(g => g.Id == player.GameId);
+
+            if (game == null)
+            {
+                throw new Exception("Game not found");
+            }
+
+            var allPlayersEndedTurn = AllPlayersEndedTurn(game);
+
+            if (allPlayersEndedTurn)
+            {
+                foreach (var p in game.Players)
+                {
+                    foreach (var pc in p.Cards)
+                    {
+                        pc.SideState = SideState.Front;
+                    }
+                }
+
+                _db.SaveChanges();
+                SetGameData(game);
+
+                StartBattle(game);
+            }
+        }
 
         return new GameDto.EndTurnResponse();
     }
 
-    private async Task<Models.Game> AllPlayersEndedTurn(int gameId)
+    private bool AllPlayersEndedTurn(Models.Game game)
     {
-        var game = await _db.Game
-            .Include(g => g.Players.Where(p => p.TurnEnded == true))
-            .ThenInclude(p => p.User).Include(g => g.Players)
-            .ThenInclude(p => p.Cards)
-            .ThenInclude(pc => pc.Card)
-            .FirstOrDefaultAsync(g => g.Id == gameId);
-
-        if (game != null && game.Players.Count == 2)
-        {
-            int[] playerListIds = game.Players.Select(p => p.UserId).ToArray();
-            await _socketService.SendToClientsInList(playerListIds, "turn_ended");
-            return game;
-        }
-
-        return null;
+        Console.WriteLine($"ENDED TURN PLAYERS COUNT {game.Players.Count(p => p.TurnEnded)}");
+        return game.Players.Count(p => p.TurnEnded) == 2;
     }
 
     private async Task StartBattle(Models.Game game)
     {
-        var player1Fields = new PlayerCard?[4];
-        var player2Fields = new PlayerCard?[4];
-
-        Console.WriteLine($"game: {game}");
-        // Console.WriteLine(game.Players.Count);
         var player1 = game.Players.ElementAt(0);
-        var p1Field1Card = player1.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field1);
-        player1Fields[0] = p1Field1Card;
-
-        var p1Field2Card = player1.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field2);
-        player1Fields[1] = p1Field2Card;
-
-        var p1Field3Card = player1.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field3);
-        player1Fields[2] = p1Field3Card;
-
-        var p1Field4Card = player1.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field4);
-        player1Fields[3] = p1Field4Card;
-
-
         var player2 = game.Players.ElementAt(1);
-        var p2Field1Card = player2.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field1);
-        player2Fields[0] = p2Field1Card;
 
-        var p2Field2Card = player2.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field2);
-        player2Fields[1] = p2Field2Card;
-
-        var p2Field3Card = player2.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field3);
-        player2Fields[2] = p2Field3Card;
-
-        var p2Field4Card = player2.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field4);
-        player2Fields[3] = p2Field4Card;
-
-        Console.WriteLine(
-            $"player 1 fields: {player1Fields[0]}, {player1Fields[1]}, {player1Fields[2]}, {player1Fields[3]}");
-        Console.WriteLine(
-            $"player 2 fields: {player2Fields[0]}, {player2Fields[1]}, {player2Fields[2]}, {player2Fields[3]}");
-
-        for (var i = 0; i < 4; i++)
+        
+        foreach (var field in _fieldsList)
         {
-            var p1CurrentCard = player1Fields[i];
-            var p2CurrentCard = player2Fields[i];
+            Console.WriteLine(field);
+            var player1Card = player1.Cards.FirstOrDefault(pc => !pc.IsDead && pc.CardIn == field);
+            var player2Card = player2.Cards.FirstOrDefault(pc => !pc.IsDead && pc.CardIn == field);
+            Console.WriteLine($"player 1 card: {player1Card}, player 2 card: {player2Card}, Player 1 id {player1.Id}");
 
-            if (p1CurrentCard != null)
+            if (player1Card != null)
             {
-                switch (p1CurrentCard.Type)
+
+                var fieldsToAttack = GetFieldsToAttack(field, player1Card, player2);
+                Console.WriteLine(fieldsToAttack.Count);
+                foreach (var pc in fieldsToAttack)
                 {
-                    case CardType.Straight:
+                    Console.WriteLine($"FIELDS: {pc}");
+                    if (pc == null)
                     {
-                        var fieldsToAttack = new PlayerCard[] {player2Fields[i] ?? null};
+                        player2.Hp -= player1Card.Damage;
+                    }
+                    else
+                    {
+                        pc.Hp -= player1Card.Damage;
+                    }
+                }
+                
+                if (player2.Hp < 1)
+                {
+                    _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "player_win",
+                        player1.Id);
+                    game.IsFinished = true;
+                    break;
+                }
+            }
+            
+            
+            if (player2Card != null)
+            {
+                var fieldsToAttack = GetFieldsToAttack(field, player2Card, player1);
+                Console.WriteLine(fieldsToAttack.Count);
+                foreach (var pc in fieldsToAttack)
+                {
+                    Console.WriteLine($"FIELDS P2: {pc}");
+                    if (pc == null)
+                    {
+                        player1.Hp -= player2Card.Damage;
+                    }
+                    else
+                    {
+                        pc.Hp -= player2Card.Damage;
+                    }
+                }
+                
+                
+                if (player1.Hp < 1)
+                {
+                    _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "player_win",
+                        player2.Id);
+                    game.IsFinished = true;
+                    break;
+                }
+            }
 
-                        foreach (var field in fieldsToAttack)
-                        {
-                            if (field == null)
-                            {
-                                player2.Hp -= p1CurrentCard.Damage;
-                            }
-                            else
-                            {
-                                field.Hp -= p1CurrentCard.Damage;
-                            }
-                        }
-
-                        await _db.SaveChangesAsync();
+            foreach (var f in _fieldsList)
+            {
+                var p1Card = player1.Cards.FirstOrDefault(pc => !pc.IsDead && pc.CardIn == f);
+                
+                if (p1Card != null && p1Card.Hp <= 0 && Array.IndexOf(_fieldsList, f) <= Array.IndexOf(_fieldsList, field))
+                    {
+                        Console.WriteLine("CARD IS DEAD EVENT P1");
                         _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                            "card_attack",
-                            new CardAttack(i, player1, p1CurrentCard, player2, fieldsToAttack));
-
-                        break;
+                            "card_is_dead", new CardIsDead(f, player2));
                     }
-                    case CardType.Left:
-                    {
-                        var fieldsToAttack =
-                            i == 0
-                                ? new PlayerCard[] {player2Fields[i] ?? null}
-                                : new PlayerCard[] {player2Fields[i] ?? null, player2Fields[i - 1] ?? null};
-
-                        foreach (var field in fieldsToAttack)
-                        {
-                            if (field == null)
-                            {
-                                player2.Hp -= p1CurrentCard.Damage;
-                            }
-                            else
-                            {
-                                field.Hp -= p1CurrentCard.Damage;
-                            }
-                        }
-
-                        await _db.SaveChangesAsync();
-                        _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                            "card_attack",
-                            new CardAttack(i, player1, p1CurrentCard, player2, fieldsToAttack));
-
-                        break;
-                    }
-                    case CardType.Right:
-                    {
-                        var fieldsToAttack =
-                            i == 3
-                                ? new PlayerCard[] {player2Fields[i] ?? null}
-                                : new PlayerCard[] {player2Fields[i] ?? null, player2Fields[i + 1] ?? null};
-
-                        foreach (var field in fieldsToAttack)
-                        {
-                            if (field == null)
-                            {
-                                player2.Hp -= p1CurrentCard.Damage;
-                            }
-                            else
-                            {
-                                field.Hp -= p1CurrentCard.Damage;
-                            }
-                        }
-
-                        await _db.SaveChangesAsync();
-                        await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                            "card_attack",
-                            new CardAttack(i, player1, p1CurrentCard, player2, fieldsToAttack));
-
-                        break;
-                    }
-                    case CardType.All:
-                    {
-                        var fieldsToAttack =
-                            i == 0
-                                ? new PlayerCard[] {player2Fields[i] ?? null, player2Fields[i + 1] ?? null}
-                                : i == 3
-                                    ? new PlayerCard[] {player2Fields[i] ?? null, player2Fields[i - 1] ?? null}
-                                    : new PlayerCard[]
-                                    {
-                                        player2Fields[i] ?? null, player2Fields[i + 1] ?? null,
-                                        player2Fields[i - 1] ?? null
-                                    };
-
-                        foreach (var field in fieldsToAttack)
-                        {
-                            if (field == null)
-                            {
-                                player2.Hp -= p1CurrentCard.Damage;
-                            }
-                            else
-                            {
-                                field.Hp -= p1CurrentCard.Damage;
-                            }
-                        }
-
-                        await _db.SaveChangesAsync();
-                        await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                            "card_attack",
-                            new CardAttack(i, player1, p1CurrentCard, player2, fieldsToAttack));
-
-                        break;
-                    }
-                }
-            }
-
-            if (player2.Hp < 1)
-            {
-                await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "player_win",
-                    player1.Id);
-                game.IsFinished = true;
-                break;
-            }
-
-
-            // socket send info
-
-            if (p2CurrentCard != null)
-            {
-                switch (p2CurrentCard.Type)
-                {
-                    case CardType.Straight:
-                    {
-                        var fieldsToAttack = new PlayerCard[] {player1Fields[i]};
-
-                        foreach (var field in fieldsToAttack)
-                        {
-                            if (field == null)
-                            {
-                                player1.Hp -= p2CurrentCard.Damage;
-                            }
-                            else
-                            {
-                                field.Hp -= p2CurrentCard.Damage;
-                            }
-                        }
-
-                        await _db.SaveChangesAsync();
-                        await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                            "card_attack",
-                            new CardAttack(i, player2, p2CurrentCard, player1, fieldsToAttack));
-
-                        break;
-                    }
-                    case CardType.Left:
-                    {
-                        var fieldsToAttack =
-                            i == 0
-                                ? new PlayerCard[] {player1Fields[i] ?? null}
-                                : new PlayerCard[] {player1Fields[i] ?? null, player1Fields[i - 1] ?? null};
-
-                        foreach (var field in fieldsToAttack)
-                        {
-                            if (field == null)
-                            {
-                                player1.Hp -= p2CurrentCard.Damage;
-                            }
-                            else
-                            {
-                                field.Hp -= p2CurrentCard.Damage;
-                            }
-                        }
-
-                        await _db.SaveChangesAsync();
-                        await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                            "card_attack",
-                            new CardAttack(i, player2, p2CurrentCard, player1, fieldsToAttack));
-
-                        break;
-                    }
-                    case CardType.Right:
-                    {
-                        var fieldsToAttack =
-                            i == 3
-                                ? new PlayerCard[] {player1Fields[i] ?? null}
-                                : new PlayerCard[] {player1Fields[i] ?? null, player1Fields[i + 1] ?? null};
-
-                        foreach (var field in fieldsToAttack)
-                        {
-                            if (field == null)
-                            {
-                                player1.Hp -= p2CurrentCard.Damage;
-                            }
-                            else
-                            {
-                                field.Hp -= p2CurrentCard.Damage;
-                            }
-                        }
-
-                        await _db.SaveChangesAsync();
-                        await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                            "card_attack",
-                            new CardAttack(i, player2, p2CurrentCard, player1, fieldsToAttack));
-
-                        break;
-                    }
-                    case CardType.All:
-                    {
-                        var fieldsToAttack =
-                            i == 0
-                                ? new PlayerCard[] {player1Fields[i] ?? null, player1Fields[i + 1] ?? null}
-                                : i == 3
-                                    ? new PlayerCard[] {player1Fields[i] ?? null, player1Fields[i - 1] ?? null}
-                                    : new PlayerCard[]
-                                    {
-                                        player1Fields[i] ?? null, player1Fields[i + 1] ?? null,
-                                        player1Fields[i - 1] ?? null
-                                    };
-
-                        foreach (var field in fieldsToAttack)
-                        {
-                            if (field == null)
-                            {
-                                player1.Hp -= p2CurrentCard.Damage;
-                            }
-                            else
-                            {
-                                field.Hp -= p2CurrentCard.Damage;
-                            }
-                        }
-
-                        await _db.SaveChangesAsync();
-                        await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                            "card_attack",
-                            new CardAttack(i, player2, p2CurrentCard, player1, fieldsToAttack));
-
-                        break;
-                    }
-                }
-            }
-
-            for (var j = 0; j < 4; j++)
-            {
-                var player1Card = player1Fields[j];
-                var player2Card = player2Fields[j];
-
-                if (player1Card.Hp <= 0 && j <= i)
-                {
-                    Console.WriteLine("CARD IS DEAD EVENT P1");
-                    await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                        "card_is_dead", new CardIsDead(j, player2));
-                }
-
-                if (player2Card.Hp <= 0 && j <= i)
+                
+                var p2Card = player2.Cards.FirstOrDefault(pc => !pc.IsDead && pc.CardIn == f);
+                
+                if (p2Card != null && p2Card.Hp <= 0 && Array.IndexOf(_fieldsList, f) <= Array.IndexOf(_fieldsList, field))
                 {
                     Console.WriteLine("CARD IS DEAD EVENT P2");
-                    await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                        "card_is_dead", new CardIsDead(j, player1));
+                    _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
+                        "card_is_dead", new CardIsDead(f, player1));
                 }
             }
 
-            if (player1.Hp < 1)
-            {
-                await _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "player_win",
-                    player2.Id);
-                game.IsFinished = true;
-                break;
-            }
+            _db.SaveChanges();
+            SetGameData(game);
 
-            await SetGameData(game);
         }
+        
+        Console.WriteLine("AFTER CYCLE");
+
+        
 
         if (game.IsFinished == false)
         {
             foreach (var player in game.Players)
             {
                 player.TurnEnded = false;
-
+        
                 var randomCards = GetRandomCards(game, 1);
-
+        
                 foreach (var c in randomCards)
                 {
                     var playerCard = new PlayerCard
@@ -619,17 +420,89 @@ public class GameService : IGameService
                         Name = c.Name,
                         Type = c.Type
                     };
-                    await _db.PlayerCard.AddAsync(playerCard);
+                    _db.PlayerCard.Add(playerCard);
                 }
             }
-
-            await _db.SaveChangesAsync();
+        
+            _db.SaveChanges();
             // _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "turn_start");
             SetGameData(game);
         }
         else
         {
-            await _db.SaveChangesAsync();
+            _db.SaveChanges();
+        }
+    }
+
+    private ICollection<PlayerCard> GetFieldsToAttack(CardIn field, PlayerCard card, Player enemyPlayer)
+    {
+        switch (card.Type)
+        {
+            case CardType.Straight:
+            {
+                return new List<PlayerCard>() {enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field)};
+            }
+
+            case CardType.Left:
+            {
+                if (field == CardIn.Field1)
+                {
+                    return new List<PlayerCard>() {enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field)};
+                }
+                else
+                {
+                    return new List<PlayerCard>()
+                    {
+                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field), 
+                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) - 1])
+                    };
+                }
+            }
+            case CardType.Right:
+            {
+                if (field == CardIn.Field4)
+                {
+                    return new List<PlayerCard>() {enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field)};
+                }
+                else
+                {
+                    return new List<PlayerCard>()
+                    {
+                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field), 
+                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) + 1])
+                    };
+                }
+            }
+            case CardType.All:
+            {
+                if (field == CardIn.Field1)
+                {
+                    return new List<PlayerCard>()
+                    {
+                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field), 
+                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) + 1])
+                    };
+                }
+                else if (field == CardIn.Field4)
+                {
+                    return new List<PlayerCard>()
+                    {
+                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field), 
+                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) - 1])
+                    };
+                }
+                else
+                {
+                    return new List<PlayerCard>()
+                    {
+                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field), 
+                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) - 1]),
+                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) + 1])
+                    };
+                }
+            }
+            default:
+                return null;
         }
     }
 
