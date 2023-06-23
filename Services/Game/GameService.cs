@@ -373,19 +373,22 @@ public class GameService : IGameService
             foreach (var f in _fieldsList)
             {
                 var p1Card = player1.Cards.FirstOrDefault(pc => !pc.IsDead && pc.CardIn == f);
-                
+                Console.WriteLine($"CARD P1 IS GOING DEAD {p1Card != null && p1Card.Hp <= 0 && Array.IndexOf(_fieldsList, f) <= Array.IndexOf(_fieldsList, field)}");
                 if (p1Card != null && p1Card.Hp <= 0 && Array.IndexOf(_fieldsList, f) <= Array.IndexOf(_fieldsList, field))
                     {
                         Console.WriteLine("CARD IS DEAD EVENT P1");
+                        p1Card.IsDead = true;
                         _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
                             "card_is_dead", new CardIsDead(f, player2));
                     }
                 
                 var p2Card = player2.Cards.FirstOrDefault(pc => !pc.IsDead && pc.CardIn == f);
-                
+                Console.WriteLine($"CARD P1 IS GOING DEAD {p2Card != null && p2Card.Hp <= 0 && Array.IndexOf(_fieldsList, f) <= Array.IndexOf(_fieldsList, field)}");
+
                 if (p2Card != null && p2Card.Hp <= 0 && Array.IndexOf(_fieldsList, f) <= Array.IndexOf(_fieldsList, field))
                 {
                     Console.WriteLine("CARD IS DEAD EVENT P2");
+                    p2Card.IsDead = true;
                     _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
                         "card_is_dead", new CardIsDead(f, player1));
                 }
