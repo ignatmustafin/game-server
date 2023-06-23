@@ -265,10 +265,12 @@ public class GameService : IGameService
             var game = _db.Game
                 .Include(g => g.Players)
                 .ThenInclude(p => p.User).Include(g => g.Players)
-                .ThenInclude(p => p.Cards)
+                .ThenInclude(p => p.Cards.Where(pc => !pc.IsDead))
                 .ThenInclude(pc => pc.Card)
                 .FirstOrDefault(g => g.Id == player.GameId);
 
+            
+            
             if (game == null)
             {
                 throw new Exception("Game not found");
@@ -408,6 +410,7 @@ public class GameService : IGameService
             foreach (var player in game.Players)
             {
                 player.TurnEnded = false;
+                player.Mana += 1;
         
                 var randomCards = GetRandomCards(game, 1);
         
@@ -428,7 +431,7 @@ public class GameService : IGameService
             }
         
             _db.SaveChanges();
-            // _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "turn_start");
+            _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "turn_start");
             SetGameData(game);
         }
         else
