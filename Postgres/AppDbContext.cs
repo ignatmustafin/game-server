@@ -17,7 +17,7 @@ public class AppDbContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseNpgsql("Host=postgres;Port=5432;Database=game;Username=macbookair;Password=admin");
+        optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=game;Username=macbookair;Password=admin");
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -27,7 +27,7 @@ public class AppDbContext : DbContext
     public void InitializeDatabase()
     {
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
-        optionsBuilder.UseNpgsql("Host=postgres;Port=5432;Database=game;Username=macbookair;Password=admin");
+        optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=game;Username=macbookair;Password=admin");
 
         using (var dbContext = new AppDbContext(optionsBuilder.Options))
         {

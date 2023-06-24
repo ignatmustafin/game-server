@@ -170,8 +170,8 @@ public class GameService : IGameService
         }
 
         playerCard.CardIn = cardThrownRequest.Field;
-
-
+        player.ManaCurrent -= 1;
+        
         await _db.SaveChangesAsync();
 
         var game = await _db.Game
@@ -209,7 +209,8 @@ public class GameService : IGameService
             {
                 Name = currentPlayer.User.Name,
                 Hp = currentPlayer.Hp,
-                Mana = currentPlayer.Mana,
+                ManaCommon = currentPlayer.ManaCommon,
+                ManaCurrent = currentPlayer.ManaCurrent,
                 CardsInHand = currentPlayer.Cards.Where(pc => pc.CardIn == CardIn.Hand && pc.IsDead == false).ToList(),
                 Field1 = currentPlayer.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field1 && pc.IsDead == false),
                 Field2 = currentPlayer.Cards.FirstOrDefault(pc => pc.CardIn == CardIn.Field2 && pc.IsDead == false),
@@ -224,7 +225,7 @@ public class GameService : IGameService
             {
                 Name = enemyPlayer.User.Name,
                 Hp = enemyPlayer.Hp,
-                Mana = enemyPlayer.Mana,
+                ManaCommon = enemyPlayer.ManaCommon,
                 CardsInHand = enemyPlayer.Cards.Where(pc => pc.CardIn == CardIn.Hand && pc.IsDead == false)
                     .Select(pc => new GameDto.EnemyCardType() {Type = pc.Type}).ToList(),
                 Field1 = GetEnemyField(CardIn.Field1, enemyPlayer),
@@ -409,7 +410,12 @@ public class GameService : IGameService
             foreach (var player in game.Players)
             {
                 player.TurnEnded = false;
-                player.Mana += 1;
+                if (player.ManaCommon < 5)
+                {
+                    player.ManaCommon += 1;
+                }
+
+                player.ManaCurrent = player.ManaCommon;
 
                 var randomCards = GetRandomCards(game, 1);
 

@@ -30,7 +30,8 @@ public class GameDto
     {
         [JsonProperty("name")] public string Name { get; set; }
         [JsonProperty("hp")] public int Hp { get; set; }
-        [JsonProperty("mana")] public int Mana { get; set; }
+        [JsonProperty("manaCommon")] public int ManaCommon { get; set; }
+        [JsonProperty("manaCurrent")] public int ManaCurrent { get; set; }
         [JsonProperty("cardsInHand")] public ICollection<PlayerCard> CardsInHand { get; set; }
         [JsonProperty("field1")] public PlayerCard Field1 { get; set; }
         [JsonProperty("field2")] public PlayerCard Field2 { get; set; }
@@ -42,7 +43,7 @@ public class GameDto
     {
         [JsonProperty("name")] public string Name { get; set; }
         [JsonProperty("hp")] public int Hp { get; set; }
-        [JsonProperty("mana")] public int Mana { get; set; }
+        [JsonProperty("manaCommon")] public int ManaCommon { get; set; }
         [JsonProperty("cardsInHand")] public ICollection<EnemyCardType> CardsInHand { get; set; }
         [JsonProperty("field1")] public CardBase Field1 { get; set; }
         [JsonProperty("field2")] public CardBase Field2 { get; set; }
