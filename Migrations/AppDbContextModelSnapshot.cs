@@ -36,9 +36,6 @@ namespace GameServer.Migrations
                     b.Property<int>("Hp")
                         .HasColumnType("integer");
 
-                    b.Property<string>("ImageUrl")
-                        .HasColumnType("text");
-
                     b.Property<int>("Manacost")
                         .HasColumnType("integer");
 
@@ -147,9 +144,6 @@ namespace GameServer.Migrations
 
                     b.Property<int>("Hp")
                         .HasColumnType("integer");
-
-                    b.Property<string>("ImageUrl")
-                        .HasColumnType("text");
 
                     b.Property<bool>("IsDead")
                         .HasColumnType("boolean");
