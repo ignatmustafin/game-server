@@ -8,6 +8,7 @@ using GameServer.Models;
 using GameServer.Postgres;
 using GameServer.Services.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace GameServer.Services.Game;
 
@@ -28,11 +29,15 @@ public class GameService : IGameService
 
     // public record DamageToPlayer(int Field, Player AttackingPlayer, PlayerCard AttackingCard, Player PlayerUnderAttack);
 
-    public record CardAttack(int Field, Player AttackingPlayer, PlayerCard AttackingCard, Player PlayerUnderAttack,
-        PlayerCard[]
-            CardUnderAttack);
+    public record CardAttack([property: JsonProperty("field")] CardIn Field,
+        [property: JsonProperty("attackingPlayer")] Player AttackingPlayer,
+        [property: JsonProperty("attackingCard")] PlayerCard AttackingCard,
+        [property: JsonProperty("playerUnderAttack")] Player PlayerUnderAttack,
+        [property: JsonProperty("fieldsUnderAttack")] ICollection<PlayerCard>
+            FieldsUnderAttack);
 
-    public record CardIsDead(CardIn Field, Player PlayerUnderAttack);
+    public record CardIsDead([property: JsonProperty("field")] CardIn Field,
+        [property: JsonProperty("playerUnderAttack")] Player PlayerUnderAttack);
 
     public GameService(AppDbContext db, SocketServerHub socketServer)
     {
@@ -129,7 +134,8 @@ public class GameService : IGameService
                     Hp = c.Hp,
                     Damage = c.Damage,
                     Name = c.Name,
-                    Type = c.Type
+                    Type = c.Type,
+                    ImageUrl = c.ImageUrl,
                 };
                 _db.PlayerCard.Add(playerCard);
             }
@@ -269,8 +275,7 @@ public class GameService : IGameService
                 .ThenInclude(pc => pc.Card)
                 .FirstOrDefault(g => g.Id == player.GameId);
 
-            
-            
+
             if (game == null)
             {
                 throw new Exception("Game not found");
@@ -309,7 +314,7 @@ public class GameService : IGameService
         var player1 = game.Players.ElementAt(0);
         var player2 = game.Players.ElementAt(1);
 
-        
+
         foreach (var field in _fieldsList)
         {
             Console.WriteLine(field);
@@ -319,7 +324,6 @@ public class GameService : IGameService
 
             if (player1Card != null)
             {
-
                 var fieldsToAttack = GetFieldsToAttack(field, player1Card, player2);
                 Console.WriteLine(fieldsToAttack.Count);
                 foreach (var pc in fieldsToAttack)
@@ -334,7 +338,10 @@ public class GameService : IGameService
                         pc.Hp -= player1Card.Damage;
                     }
                 }
-                
+
+                _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
+                    "card_attack", new CardAttack(field, player1, player1Card, player2, fieldsToAttack));
+
                 if (player2.Hp < 1)
                 {
                     _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "player_win",
@@ -343,8 +350,8 @@ public class GameService : IGameService
                     break;
                 }
             }
-            
-            
+
+
             if (player2Card != null)
             {
                 var fieldsToAttack = GetFieldsToAttack(field, player2Card, player1);
@@ -361,8 +368,11 @@ public class GameService : IGameService
                         pc.Hp -= player2Card.Damage;
                     }
                 }
-                
-                
+
+                _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
+                    "card_attack", new CardAttack(field, player2, player2Card, player1, fieldsToAttack));
+
+
                 if (player1.Hp < 1)
                 {
                     _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "player_win",
@@ -375,19 +385,23 @@ public class GameService : IGameService
             foreach (var f in _fieldsList)
             {
                 var p1Card = player1.Cards.FirstOrDefault(pc => !pc.IsDead && pc.CardIn == f);
-                Console.WriteLine($"CARD P1 IS GOING DEAD {p1Card != null && p1Card.Hp <= 0 && Array.IndexOf(_fieldsList, f) <= Array.IndexOf(_fieldsList, field)}");
-                if (p1Card != null && p1Card.Hp <= 0 && Array.IndexOf(_fieldsList, f) <= Array.IndexOf(_fieldsList, field))
-                    {
-                        Console.WriteLine("CARD IS DEAD EVENT P1");
-                        p1Card.IsDead = true;
-                        _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                            "card_is_dead", new CardIsDead(f, player2));
-                    }
-                
-                var p2Card = player2.Cards.FirstOrDefault(pc => !pc.IsDead && pc.CardIn == f);
-                Console.WriteLine($"CARD P1 IS GOING DEAD {p2Card != null && p2Card.Hp <= 0 && Array.IndexOf(_fieldsList, f) <= Array.IndexOf(_fieldsList, field)}");
+                Console.WriteLine(
+                    $"CARD P1 IS GOING DEAD {p1Card != null && p1Card.Hp <= 0 && Array.IndexOf(_fieldsList, f) <= Array.IndexOf(_fieldsList, field)}");
+                if (p1Card != null && p1Card.Hp <= 0 &&
+                    Array.IndexOf(_fieldsList, f) <= Array.IndexOf(_fieldsList, field))
+                {
+                    Console.WriteLine("CARD IS DEAD EVENT P1");
+                    p1Card.IsDead = true;
+                    _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
+                        "card_is_dead", new CardIsDead(f, player2));
+                }
 
-                if (p2Card != null && p2Card.Hp <= 0 && Array.IndexOf(_fieldsList, f) <= Array.IndexOf(_fieldsList, field))
+                var p2Card = player2.Cards.FirstOrDefault(pc => !pc.IsDead && pc.CardIn == f);
+                Console.WriteLine(
+                    $"CARD P1 IS GOING DEAD {p2Card != null && p2Card.Hp <= 0 && Array.IndexOf(_fieldsList, f) <= Array.IndexOf(_fieldsList, field)}");
+
+                if (p2Card != null && p2Card.Hp <= 0 &&
+                    Array.IndexOf(_fieldsList, f) <= Array.IndexOf(_fieldsList, field))
                 {
                     Console.WriteLine("CARD IS DEAD EVENT P2");
                     p2Card.IsDead = true;
@@ -398,12 +412,10 @@ public class GameService : IGameService
 
             _db.SaveChanges();
             SetGameData(game);
-
         }
-        
+
         Console.WriteLine("AFTER CYCLE");
 
-        
 
         if (game.IsFinished == false)
         {
@@ -411,9 +423,9 @@ public class GameService : IGameService
             {
                 player.TurnEnded = false;
                 player.Mana += 1;
-        
+
                 var randomCards = GetRandomCards(game, 1);
-        
+
                 foreach (var c in randomCards)
                 {
                     var playerCard = new PlayerCard
@@ -424,12 +436,13 @@ public class GameService : IGameService
                         Hp = c.Hp,
                         Damage = c.Damage,
                         Name = c.Name,
-                        Type = c.Type
+                        Type = c.Type,
+                        ImageUrl = c.ImageUrl
                     };
                     _db.PlayerCard.Add(playerCard);
                 }
             }
-        
+
             _db.SaveChanges();
             _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "turn_start");
             SetGameData(game);
@@ -459,8 +472,9 @@ public class GameService : IGameService
                 {
                     return new List<PlayerCard>()
                     {
-                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field), 
-                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) - 1])
+                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field),
+                        enemyPlayer.Cards.FirstOrDefault(pc =>
+                            pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) - 1])
                     };
                 }
             }
@@ -474,8 +488,9 @@ public class GameService : IGameService
                 {
                     return new List<PlayerCard>()
                     {
-                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field), 
-                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) + 1])
+                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field),
+                        enemyPlayer.Cards.FirstOrDefault(pc =>
+                            pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) + 1])
                     };
                 }
             }
@@ -485,25 +500,29 @@ public class GameService : IGameService
                 {
                     return new List<PlayerCard>()
                     {
-                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field), 
-                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) + 1])
+                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field),
+                        enemyPlayer.Cards.FirstOrDefault(pc =>
+                            pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) + 1])
                     };
                 }
                 else if (field == CardIn.Field4)
                 {
                     return new List<PlayerCard>()
                     {
-                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field), 
-                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) - 1])
+                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field),
+                        enemyPlayer.Cards.FirstOrDefault(pc =>
+                            pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) - 1])
                     };
                 }
                 else
                 {
                     return new List<PlayerCard>()
                     {
-                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field), 
-                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) - 1]),
-                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) + 1])
+                        enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field),
+                        enemyPlayer.Cards.FirstOrDefault(pc =>
+                            pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) - 1]),
+                        enemyPlayer.Cards.FirstOrDefault(pc =>
+                            pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) + 1])
                     };
                 }
             }

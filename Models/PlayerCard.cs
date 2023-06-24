@@ -39,4 +39,5 @@ public class PlayerCard : GameDto.CardBase
     [JsonProperty("name")] public string Name { get; set; }
     [JsonProperty("type")] [EnumDataType(typeof(CardType))] public CardType Type { get; set; }
     [JsonProperty("sideState")] [EnumDataType(typeof(SideState))] public SideState SideState { get; set; } = SideState.Back;
+    [JsonProperty("type")] public string ImageUrl { get; set; }
 }
