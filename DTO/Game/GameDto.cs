@@ -55,6 +55,7 @@ public class GameDto
     {
         [JsonProperty("id")] public int Id { get; set; }
         [JsonProperty("type")] [EnumDataType(typeof(CardType))] public CardType Type { get; set; }
+        [JsonProperty("sideState")] [EnumDataType(typeof(SideState))] public SideState SideState { get; set; }
     }
     
     public record GameData([property: JsonProperty("playerData")] PlayerData PlayerData, [property: JsonProperty("enemyData")] EnemyData EnemyData);
