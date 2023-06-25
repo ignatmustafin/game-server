@@ -171,7 +171,7 @@ public class GameService : IGameService
         }
 
         playerCard.CardIn = cardThrownRequest.Field;
-        player.ManaCurrent -= 1;
+        player.ManaCurrent -= playerCard.Manacost;
         
         await _db.SaveChangesAsync();
 
@@ -278,7 +278,10 @@ public class GameService : IGameService
                 {
                     foreach (var pc in p.Cards)
                     {
-                        pc.SideState = SideState.Front;
+                        if (pc.CardIn != CardIn.Hand)
+                        {
+                            pc.SideState = SideState.Front;
+                        }
                     }
                 }
 
