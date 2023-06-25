@@ -342,6 +342,7 @@ public class GameService : IGameService
                     game.IsFinished = true;
                     break;
                 }
+                SetGameData(game);
             }
 
 
@@ -373,6 +374,7 @@ public class GameService : IGameService
                     game.IsFinished = true;
                     break;
                 }
+                SetGameData(game);
             }
 
             foreach (var f in _fieldsList)
@@ -387,6 +389,7 @@ public class GameService : IGameService
                     p1Card.IsDead = true;
                     _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
                         "card_is_dead", new GameDto.CardIsDead(f, player2.Id));
+                    SetGameData(game);
                 }
 
                 var p2Card = player2.Cards.FirstOrDefault(pc => !pc.IsDead && pc.CardIn == f);
@@ -400,11 +403,12 @@ public class GameService : IGameService
                     p2Card.IsDead = true;
                     _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
                         "card_is_dead", new GameDto.CardIsDead(f, player1.Id));
+                    SetGameData(game);
                 }
             }
 
             _db.SaveChanges();
-            SetGameData(game);
+            // SetGameData(game);
         }
 
         Console.WriteLine("AFTER CYCLE");
@@ -442,8 +446,8 @@ public class GameService : IGameService
             }
 
             _db.SaveChanges();
-            _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "turn_start");
             SetGameData(game);
+            _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "turn_start");
         }
         else
         {
