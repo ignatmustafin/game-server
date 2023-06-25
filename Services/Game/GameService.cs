@@ -300,6 +300,7 @@ public class GameService : IGameService
 
     private async Task StartBattle(Models.Game game)
     {
+        _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(), "start_battle");
         var player1 = game.Players.ElementAt(0);
         var player2 = game.Players.ElementAt(1);
 
