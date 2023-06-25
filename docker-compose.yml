@@ -6,7 +6,6 @@ services:
       dockerfile: Dockerfile
     ports:
       - "5157:5157"
-      - "3000:3000"
     depends_on:
       - postgres
     command: sh -c "echo $(pwd) && dotnet ef database update && dotnet /app/build/GameServer.dll"
@@ -18,5 +17,13 @@ services:
       POSTGRES_PASSWORD: admin
       POSTGRES_DB: game
     ports:
-      - 6543:5432
-
+      - "6543:5432"
+  
+  nginx:
+    image: nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "80:80"
+    depends_on:
+      - webapp
