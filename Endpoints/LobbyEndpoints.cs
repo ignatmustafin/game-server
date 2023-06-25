@@ -11,19 +11,19 @@ public static class LobbyEndpoints
 
     public static void ConfigureLobbyEndpoints(this WebApplication app)
     {
-        app.MapPost("/game/create-game", CreateGame).WithName("create-game")
+        app.MapPost("/api/game/create-game", CreateGame).WithName("create-game")
             .Accepts<GameDto.CreateGameRequest>("application/json")
             .Produces<GameDto.CreateGameResponse>(201).Produces<ApiError>(400);
-        app.MapPost("/game/join-game", JoinGame).WithName("join-game")
+        app.MapPost("/api/game/join-game", JoinGame).WithName("join-game")
             .Accepts<GameDto.JoinGameRequest>("application/json")
             .Produces<GameDto.JoinGameResponse>().Produces<ApiError>(400);
-        app.MapPost("/game/loaded-game", LoadGame).WithName("loaded-game")
+        app.MapPost("/api/game/loaded-game", LoadGame).WithName("loaded-game")
             .Accepts<GameDto.IsLoadedRequest>("application/json")
             .Produces<GameDto.IsLoadedResponse>().Produces<ApiError>(400); 
-        app.MapPost("/game/card-thrown", ThrowCard).WithName("card-thrown")
+        app.MapPost("/api/game/card-thrown", ThrowCard).WithName("card-thrown")
             .Accepts<GameDto.CardThrownRequest>("application/json")
             .Produces<GameDto.CardThrownResponse>().Produces<ApiError>(400);
-        app.MapPost("/game/turn-ended", EndTurn).WithName("turn-ended")
+        app.MapPost("/api/game/turn-ended", EndTurn).WithName("turn-ended")
             .Accepts<GameDto.EndTurnRequest>("application/json")
             .Produces<GameDto.EndTurnResponse>().Produces<ApiError>(400);
     }

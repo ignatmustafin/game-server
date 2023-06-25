@@ -11,9 +11,9 @@ public static class AuthEndpoints
 
     public static void ConfigureAuthEndpoints(this WebApplication app)
     {
-        app.MapPost("/auth/signUp", SignUp).WithName("SignUp").Accepts<AuthDto.SignUpRequest>("application/json")
+        app.MapPost("/api/auth/signUp", SignUp).WithName("SignUp").Accepts<AuthDto.SignUpRequest>("application/json")
             .Produces<AuthDto.SignUpResponse>(201).Produces<ApiError>(400);
-        app.MapPost("/auth/signIn", SignIn).WithName("SignIn").Accepts<AuthDto.SignInRequest>("application/json")
+        app.MapPost("/api/auth/signIn", SignIn).WithName("SignIn").Accepts<AuthDto.SignInRequest>("application/json")
             .Produces<AuthDto.SignInResponse>(200).Produces<ApiError>(400);
     }
 
