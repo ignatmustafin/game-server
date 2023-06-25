@@ -228,7 +228,7 @@ public class GameService : IGameService
                 Hp = enemyPlayer.Hp,
                 ManaCommon = enemyPlayer.ManaCommon,
                 CardsInHand = enemyPlayer.Cards.Where(pc => pc.CardIn == CardIn.Hand && pc.IsDead == false)
-                    .Select(pc => new GameDto.EnemyCardType() {Type = pc.Type}).ToList(),
+                    .Select(pc => new GameDto.EnemyCardType() {Type = pc.Type, Id = pc.Id}).ToList(),
                 Field1 = GetEnemyField(CardIn.Field1, enemyPlayer),
                 Field2 = GetEnemyField(CardIn.Field2, enemyPlayer),
                 Field3 = GetEnemyField(CardIn.Field3, enemyPlayer),
@@ -560,7 +560,7 @@ public class GameService : IGameService
 
         if (enemyCard.SideState == SideState.Back)
         {
-            return new GameDto.EnemyCardType() {Type = enemyCard.Type};
+            return new GameDto.EnemyCardType() {Type = enemyCard.Type, Id = enemyCard.Id};
         }
 
         return enemyCard;

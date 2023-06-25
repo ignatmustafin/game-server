@@ -53,6 +53,7 @@ public class GameDto
 
     public class EnemyCardType : CardBase
     {
+        [JsonProperty("id")] public int Id { get; set; }
         [JsonProperty("type")] [EnumDataType(typeof(CardType))] public CardType Type { get; set; }
     }
     
