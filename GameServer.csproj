@@ -37,6 +37,10 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Content Include="Assets\Images\blue-card.png" />
+      <Content Include="Assets\Images\green-card.png" />
+      <Content Include="Assets\Images\red-card.png" />
+      <Content Include="Assets\Images\yellow-card.png" />
       <Content Include="bin\Debug\net7.0\appsettings.Development.json" />
       <Content Include="bin\Debug\net7.0\appsettings.json" />
       <Content Include="bin\Debug\net7.0\AutoMapper.dll" />

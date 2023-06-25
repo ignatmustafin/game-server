@@ -122,7 +122,8 @@ public class GameService : IGameService
                     Hp = c.Hp,
                     Damage = c.Damage,
                     Name = c.Name,
-                    Type = c.Type
+                    Type = c.Type,
+                    ImageUrl = c.ImageUrl
                 };
                 _db.PlayerCard.Add(playerCard);
             }
@@ -328,7 +329,7 @@ public class GameService : IGameService
                 }
                 
                 _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                    "card_attack", new GameDto.CardAttack(field, player1, player1Card, player2, fieldsToAttack));
+                    "card_attack", new GameDto.CardAttack(field, player1.Id, player1Card, player2.Id, fieldsToAttack));
 
                 if (player2.Hp < 1)
                 {
@@ -359,7 +360,7 @@ public class GameService : IGameService
                 
 
                 _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                    "card_attack", new GameDto.CardAttack(field, player2, player2Card, player1, fieldsToAttack));
+                    "card_attack", new GameDto.CardAttack(field, player2.Id, player2Card, player1.Id, fieldsToAttack));
 
                 if (player1.Hp < 1)
                 {
@@ -381,7 +382,7 @@ public class GameService : IGameService
                     Console.WriteLine("CARD IS DEAD EVENT P1");
                     p1Card.IsDead = true;
                     _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                        "card_is_dead", new GameDto.CardIsDead(f, player2));
+                        "card_is_dead", new GameDto.CardIsDead(f, player2.Id));
                 }
 
                 var p2Card = player2.Cards.FirstOrDefault(pc => !pc.IsDead && pc.CardIn == f);
@@ -394,7 +395,7 @@ public class GameService : IGameService
                     Console.WriteLine("CARD IS DEAD EVENT P2");
                     p2Card.IsDead = true;
                     _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                        "card_is_dead", new GameDto.CardIsDead(f, player1));
+                        "card_is_dead", new GameDto.CardIsDead(f, player1.Id));
                 }
             }
 
@@ -429,7 +430,8 @@ public class GameService : IGameService
                         Hp = c.Hp,
                         Damage = c.Damage,
                         Name = c.Name,
-                        Type = c.Type
+                        Type = c.Type,
+                        ImageUrl = c.ImageUrl
                     };
                     _db.PlayerCard.Add(playerCard);
                 }

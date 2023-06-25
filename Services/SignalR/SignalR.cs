@@ -48,6 +48,7 @@ namespace GameServer.Services.SignalR
 
         public async Task SendToClientsInList(int[] socketIdList, string eventName, object data = null)
         {
+            Console.WriteLine($"EVENT NAME HERE: {eventName}");
             foreach (var socketId in socketIdList)
             {
                 var client = _clientConnectionsIds.FirstOrDefault(x => x.Key == socketId);
@@ -59,10 +60,19 @@ namespace GameServer.Services.SignalR
                     }
                     else
                     {
-                        var json = JsonConvert.SerializeObject(data);
-                        await Clients.Client(client.Value).SendAsync(eventName, json);
+                        try
+                        {
+                            var json = JsonConvert.SerializeObject(data);
+                            // Дальнейший код, который должен выполниться после сериализации
+                            await Clients.Client(client.Value).SendAsync(eventName, json);
+                            Console.WriteLine($"EVENT {eventName} SENDED TO Clients in list with id {socketId}");
+
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("Ошибка при сериализации в JSON: " + ex.Message);
+                        }
                     }
-                    Console.WriteLine($"EVENT {eventName} SENDED TO Clients in list with id {socketId}");
                 }
             }
         }

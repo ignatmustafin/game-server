@@ -7,6 +7,7 @@ using GameServer.Models;
 using GameServer.Services.Auth;
 using GameServer.Services.Game;
 using GameServer.Services.SignalR;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 using Microsoft.VisualBasic;
 
@@ -40,6 +41,12 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     dbContext.InitializeDatabase();
 }
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), "Assets")),
+    RequestPath = "/Assets"
+});
 
 
 // if (app.Environment.IsDevelopment())
