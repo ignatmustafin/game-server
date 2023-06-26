@@ -61,5 +61,4 @@ app.UseAuthorization();
 app.ConfigureAuthEndpoints();
 app.ConfigureLobbyEndpoints();
 
-app.UseCors(corsBuilder => corsBuilder.WithOrigins("http://localhost:5173", "http://localhost:5174", "http://192.168.0.104:5173", "http://localhost").AllowAnyHeader().AllowAnyMethod().AllowCredentials());
 app.Run("http://0.0.0.0:5157");
