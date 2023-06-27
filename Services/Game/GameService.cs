@@ -33,6 +33,93 @@ public class GameService : IGameService
         _socketService = socketServer;
     }
 
+    public async Task<GameDto.FindGameResponse> FindGame(GameDto.FindGameRequest findGameRequest)
+    {
+        var game = await _db.Game.Include(g => g.Players).FirstOrDefaultAsync(g => g.Players.Count < 2);
+        if (game == null)
+        {
+            var gameObject = new Models.Game
+            {
+                Link = Guid.NewGuid()
+            };
+
+            var newGame = await _db.Game.AddAsync(gameObject);
+            await _db.SaveChangesAsync();
+
+            Player playerObject = new Player
+            {
+                GameId = newGame.Entity.Id,
+                UserId = findGameRequest.UserId,
+            };
+
+            var player = await _db.Player.AddAsync(playerObject);
+            await _db.SaveChangesAsync();
+
+            var semaphore = new SemaphoreSlim(0);
+
+            var gameData = await UpdateGameData(newGame.Entity.Id, semaphore);
+            
+            await semaphore.WaitAsync();
+
+            
+            if (!gameData.success)
+            {
+                _db.Game.Remove(newGame.Entity);
+                _db.Player.Remove(player.Entity);
+                await _db.SaveChangesAsync();
+                throw gameData.error;
+            }
+            
+            return new GameDto.FindGameResponse(player.Entity.Id, newGame.Entity.Id);
+        }
+        else
+        {
+            var playerObject = new Player
+            {
+                GameId = game.Id,
+                UserId = findGameRequest.UserId,
+            };
+
+            var player = await _db.Player.AddAsync(playerObject);
+            await _db.SaveChangesAsync();
+
+            return new GameDto.FindGameResponse(player.Entity.Id, game.Id);
+        }
+    }
+
+    private async Task<(bool success, Exception error)> UpdateGameData(int gameId, SemaphoreSlim semaphore)
+    {
+        var i = 0;
+        Exception error;
+        while (true)
+        {
+            if (i == 31)
+            {
+                error = new Exception("Game not found, try again");
+                break;
+            }
+            await Task.Delay(1000);
+            
+            var game = await _db.Game.Include(g => g.Players).FirstOrDefaultAsync(g => g.Id == gameId);
+
+            if (game == null)
+            {
+                error = new Exception("Game not found in UpdateGameData");
+                break;
+            }
+
+            if (game.Players.Count == 2)
+            {
+                semaphore.Release();
+                return (true, null);
+            }
+            i++;
+        }
+        
+        semaphore.Release();
+        return (false, error);
+    }
+
     public async Task<GameDto.CreateGameResponse> CreateLobby(GameDto.CreateGameRequest createGameRequest)
     {
         Models.Game game = new Models.Game
@@ -172,7 +259,7 @@ public class GameService : IGameService
 
         playerCard.CardIn = cardThrownRequest.Field;
         player.ManaCurrent -= playerCard.Manacost;
-        
+
         await _db.SaveChangesAsync();
 
         var game = await _db.Game
@@ -228,7 +315,8 @@ public class GameService : IGameService
                 Hp = enemyPlayer.Hp,
                 ManaCommon = enemyPlayer.ManaCommon,
                 CardsInHand = enemyPlayer.Cards.Where(pc => pc.CardIn == CardIn.Hand && pc.IsDead == false)
-                    .Select(pc => new GameDto.EnemyCardType() {Type = pc.Type, Id = pc.Id, SideState = pc.SideState}).ToList(),
+                    .Select(pc => new GameDto.EnemyCardType() {Type = pc.Type, Id = pc.Id, SideState = pc.SideState})
+                    .ToList(),
                 Field1 = GetEnemyField(CardIn.Field1, enemyPlayer),
                 Field2 = GetEnemyField(CardIn.Field2, enemyPlayer),
                 Field3 = GetEnemyField(CardIn.Field3, enemyPlayer),
@@ -331,7 +419,7 @@ public class GameService : IGameService
                         pc.Hp -= player1Card.Damage;
                     }
                 }
-                
+
                 _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
                     "card_attack", new GameDto.CardAttack(field, player1.Id, player1Card, player2.Id, fieldsToAttack));
 
@@ -342,6 +430,7 @@ public class GameService : IGameService
                     game.IsFinished = true;
                     break;
                 }
+
                 SetGameData(game);
             }
 
@@ -362,7 +451,7 @@ public class GameService : IGameService
                         pc.Hp -= player2Card.Damage;
                     }
                 }
-                
+
 
                 _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
                     "card_attack", new GameDto.CardAttack(field, player2.Id, player2Card, player1.Id, fieldsToAttack));
@@ -374,6 +463,7 @@ public class GameService : IGameService
                     game.IsFinished = true;
                     break;
                 }
+
                 SetGameData(game);
             }
 
@@ -439,8 +529,14 @@ public class GameService : IGameService
                         Damage = c.Damage,
                         Name = c.Name,
                         Type = c.Type,
-                        ImageUrl = c.ImageUrl
+                        ImageUrl = c.ImageUrl,
                     };
+
+                    if (player.Cards.Where(pc => !pc.IsDead && pc.CardIn == CardIn.Hand).ToList().Count >= 5)
+                    {
+                        playerCard.IsDead = true;
+                        _socketService.SendToClient(player.UserId, "card_burnt", playerCard);
+                    }
                     _db.PlayerCard.Add(playerCard);
                 }
             }
@@ -559,7 +655,7 @@ public class GameService : IGameService
 
     private GameDto.CardBase GetEnemyField(CardIn field, Player enemyPlayer)
     {
-        var enemyCard = enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field && !pc.IsDead);
+        var enemyCard = enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field && !pc.IsDead && pc.SideState == SideState.Front);
 
         if (enemyCard == null)
         {
@@ -568,7 +664,8 @@ public class GameService : IGameService
 
         if (enemyCard.SideState == SideState.Back)
         {
-            return new GameDto.EnemyCardType() {Type = enemyCard.Type, Id = enemyCard.Id, SideState = enemyCard.SideState};
+            return new GameDto.EnemyCardType()
+                {Type = enemyCard.Type, Id = enemyCard.Id, SideState = enemyCard.SideState};
         }
 
         return enemyCard;

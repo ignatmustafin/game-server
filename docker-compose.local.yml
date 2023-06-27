@@ -1,0 +1,27 @@
+version: '3.9'
+services:
+  webapp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5157:5157"
+    depends_on:
+      - postgres
+    command: sh -c "dotnet ef database update && dotnet /app/build/GameServer.dll"
+  
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_USER: macbookair
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: game
+    ports:
+      - "5432:5432"
+  
+  nginx:
+    image: nginx
+    volumes:
+      - ./nginx/nginx.local.conf:/etc/nginx/nginx.conf
+    ports:
+      - "80:80"

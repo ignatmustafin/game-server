@@ -14,8 +14,8 @@ public class Player
     public bool IsLoaded { get; set; }
     public bool TurnEnded { get; set; }
     public int Hp { get; set; } = 30;
-    public int  ManaCommon { get; set; } = 1;
-    public int  ManaCurrent { get; set; } = 1;
+    public int  ManaCommon { get; set; } = 2;
+    public int  ManaCurrent { get; set; } = 2;
     public int? Field1CardId { get; set; }
 
     public int? Field2CardId { get; set; }

@@ -17,6 +17,9 @@ public static class LobbyEndpoints
         app.MapPost("/api/game/join-game", JoinGame).WithName("join-game")
             .Accepts<GameDto.JoinGameRequest>("application/json")
             .Produces<GameDto.JoinGameResponse>().Produces<ApiError>(400);
+        app.MapPost("/api/game/find-game", FindGame).WithName("find-game")
+            .Accepts<GameDto.FindGameRequest>("application/json")
+            .Produces<GameDto.FindGameResponse>().Produces<ApiError>(400);
         app.MapPost("/api/game/loaded-game", LoadGame).WithName("loaded-game")
             .Accepts<GameDto.IsLoadedRequest>("application/json")
             .Produces<GameDto.IsLoadedResponse>().Produces<ApiError>(400); 
@@ -49,6 +52,20 @@ public static class LobbyEndpoints
         {
             GameDto.JoinGameResponse response = await gameService.JoinGame(body);
             return Results.Ok(response);
+        }
+        catch (Exception e)
+        {
+            return Results.BadRequest(new ApiError(e.Message));
+        }
+    }
+    
+    private async static Task<IResult> FindGame(IGameService gameService,
+        [FromBody] GameDto.FindGameRequest body)
+    {
+        try
+        {
+            GameDto.FindGameResponse data = await gameService.FindGame(body);
+            return Results.Ok(data);
         }
         catch (Exception e)
         {

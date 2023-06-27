@@ -13,6 +13,9 @@ public class GameDto
     public record JoinGameRequest(Guid Link, int UserId);
     public record JoinGameResponse(int PlayerId, int GameId);
     
+    public record FindGameRequest(int UserId);
+    public record FindGameResponse(int PlayerId, int GameId);
+    
     public record IsLoadedRequest(int PlayerId, int GameId);
     public record IsLoadedResponse(bool Success = true);
 
