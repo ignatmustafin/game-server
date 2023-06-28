@@ -24,6 +24,7 @@ services:
     volumes:
       - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf
       - /home/poorman/dist:/home/client/dist
+      - /home/landing:/home/client/landing
     ports:
       - "80:80"
     depends_on:
