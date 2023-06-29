@@ -1,6 +1,7 @@
 version: '3.9'
 services:
-  webapp:
+  server-app:
+    container_name: game-server-app
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,6 +12,7 @@ services:
     command: sh -c "dotnet ef database update && dotnet /app/build/GameServer.dll"
   
   postgres:
+    container_name: game-server-postgres
     image: postgres
     environment:
       POSTGRES_USER: macbookair
@@ -20,12 +22,21 @@ services:
       - "5432:5432"
   
   nginx:
+    container_name: game-server-nginx
     image: nginx
     volumes:
       - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf
       - /home/poorman/dist:/home/client/dist
-      - /home/landing:/home/client/landing
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
     ports:
       - "80:80"
-    depends_on:
-      - webapp
+      - "443:443"
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+  certbot:
+    container_name: game-server-certbot
+    image: certbot/certbot
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"

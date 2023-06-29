@@ -11,3 +11,4 @@
 *.tmp
 /GameServerTests/bin/
 /GameServerTests/obj/
+init-letsencrypt.sh
