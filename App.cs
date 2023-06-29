@@ -7,6 +7,7 @@ using GameServer.Models;
 using GameServer.Services.Auth;
 using GameServer.Services.Game;
 using GameServer.Services.SignalR;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 using Microsoft.VisualBasic;
@@ -19,7 +20,6 @@ builder.Services.AddMvc();
 builder.Services.AddSignalR();
 
 
-
 builder.Services.AddSingleton(new SocketServerHub());
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql());
@@ -30,11 +30,19 @@ builder.Services.AddScoped<IGameService, GameService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SchemaGeneratorOptions.CustomTypeMappings.Add(typeof(AuthEndpoints.ApiError), () => new OpenApiSchema { /* настройки схемы для ApiError */ });
+    c.SchemaGeneratorOptions.CustomTypeMappings.Add(typeof(AuthEndpoints.ApiError), () => new OpenApiSchema
+    {
+        /* настройки схемы для ApiError */
+    });
 });
 
 
 var app = builder.Build();
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
 app.UseStaticFiles(new StaticFileOptions
 {
@@ -43,13 +51,18 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 
-// if (app.Environment.IsDevelopment())
-// {
+if (app.Environment.IsDevelopment())
+{
     app.UseSwagger();
     app.UseSwaggerUI();
-// }
+}
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
+
 app.UseRouting();
 
 app.MapHub<SocketServerHub>("/socket");
