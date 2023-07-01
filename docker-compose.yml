@@ -1,7 +1,7 @@
 version: "3.9"
 services:
-  webapp:
-    container_name: game-app-dev
+  server-app:
+    container_name: game-server-app-dev
     build:
       context: .
       dockerfile: Dockerfile
@@ -12,7 +12,7 @@ services:
     command: sh -c "dotnet ef database update && dotnet /app/build/GameServer.dll"
 
   postgres:
-    container_name: game-postgres-dev
+    container_name: game-server-postgres-dev
     image: postgres
     environment:
       POSTGRES_USER: macbookair
@@ -22,11 +22,11 @@ services:
       - "6543:5432"
 
   nginx:
-    container_name: game-nginx-dev
+    container_name: game-server-nginx-dev
     image: nginx
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
     ports:
       - "80:80"
     depends_on:
-      - webapp
+      - server-app
