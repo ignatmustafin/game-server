@@ -509,14 +509,14 @@ public class GameService : IGameService
             foreach (var player in game.Players)
             {
                 player.TurnEnded = false;
-                if (player.ManaCommon < 5)
+                if (player.ManaCommon < 6)
                 {
                     player.ManaCommon += 1;
                 }
 
                 player.ManaCurrent = player.ManaCommon;
 
-                var randomCards = GetRandomCards(game, 1);
+                var randomCards = GetRandomCards(game, 2);
 
                 foreach (var c in randomCards)
                 {
