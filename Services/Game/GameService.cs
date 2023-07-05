@@ -58,10 +58,10 @@ public class GameService : IGameService
             var semaphore = new SemaphoreSlim(0);
 
             var gameData = await UpdateGameData(newGame.Entity.Id, semaphore);
-            
+
             await semaphore.WaitAsync();
 
-            
+
             if (!gameData.success)
             {
                 _db.Game.Remove(newGame.Entity);
@@ -69,7 +69,7 @@ public class GameService : IGameService
                 await _db.SaveChangesAsync();
                 throw gameData.error;
             }
-            
+
             return new GameDto.FindGameResponse(player.Entity.Id, newGame.Entity.Id);
         }
         else
@@ -98,8 +98,9 @@ public class GameService : IGameService
                 error = new Exception("Game not found, try again");
                 break;
             }
+
             await Task.Delay(1000);
-            
+
             var game = await _db.Game.Include(g => g.Players).FirstOrDefaultAsync(g => g.Id == gameId);
 
             if (game == null)
@@ -113,9 +114,10 @@ public class GameService : IGameService
                 semaphore.Release();
                 return (true, null);
             }
+
             i++;
         }
-        
+
         semaphore.Release();
         return (false, error);
     }
@@ -406,8 +408,7 @@ public class GameService : IGameService
             if (player1Card != null)
             {
                 var fieldsToAttack = GetFieldsToAttack(field, player1Card, player2);
-                Console.WriteLine(fieldsToAttack.Count);
-                foreach (var pc in fieldsToAttack)
+                foreach (var pc in fieldsToAttack.PlayerCards)
                 {
                     Console.WriteLine($"FIELDS: {pc}");
                     if (pc == null)
@@ -421,7 +422,7 @@ public class GameService : IGameService
                 }
 
                 _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                    "card_attack", new GameDto.CardAttack(field, player1.Id, player1Card, player2.Id, fieldsToAttack));
+                    "card_attack", new GameDto.CardAttack(field, player1.Id, player1Card, player2.Id, fieldsToAttack.Fields));
 
                 if (player2.Hp < 1)
                 {
@@ -438,8 +439,7 @@ public class GameService : IGameService
             if (player2Card != null)
             {
                 var fieldsToAttack = GetFieldsToAttack(field, player2Card, player1);
-                Console.WriteLine(fieldsToAttack.Count);
-                foreach (var pc in fieldsToAttack)
+                foreach (var pc in fieldsToAttack.PlayerCards)
                 {
                     Console.WriteLine($"FIELDS P2: {pc}");
                     if (pc == null)
@@ -454,7 +454,7 @@ public class GameService : IGameService
 
 
                 _socketService.SendToClientsInList(game.Players.Select(p => p.UserId).ToArray(),
-                    "card_attack", new GameDto.CardAttack(field, player2.Id, player2Card, player1.Id, fieldsToAttack));
+                    "card_attack", new GameDto.CardAttack(field, player2.Id, player2Card, player1.Id, fieldsToAttack.Fields));
 
                 if (player1.Hp < 1)
                 {
@@ -537,6 +537,7 @@ public class GameService : IGameService
                         playerCard.IsDead = true;
                         _socketService.SendToClient(player.UserId, "card_burnt", playerCard);
                     }
+
                     _db.PlayerCard.Add(playerCard);
                 }
             }
@@ -551,70 +552,84 @@ public class GameService : IGameService
         }
     }
 
-    private ICollection<PlayerCard> GetFieldsToAttack(CardIn field, PlayerCard card, Player enemyPlayer)
+    private GameDto.FieldsUnderAttack GetFieldsToAttack(CardIn field, PlayerCard card, Player enemyPlayer)
     {
         switch (card.Type)
         {
             case CardType.Straight:
             {
-                return new List<PlayerCard>() {enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field)};
+                var playerCards = new List<PlayerCard>() {enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field)};
+                var fields = new List<CardIn>() {field};
+                return new GameDto.FieldsUnderAttack(playerCards, fields);
             }
 
             case CardType.Left:
             {
                 if (field == CardIn.Field1)
                 {
-                    return new List<PlayerCard>() {enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field)};
+                    var playerCards = new List<PlayerCard>() {enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field)};
+                    var fields = new List<CardIn>() {field};
+                    return new GameDto.FieldsUnderAttack(playerCards, fields);
                 }
                 else
                 {
-                    return new List<PlayerCard>()
+                    var playerCards = new List<PlayerCard>()
                     {
                         enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field),
                         enemyPlayer.Cards.FirstOrDefault(pc =>
                             pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) - 1])
                     };
+                    var fields = new List<CardIn>() {field, _fieldsList[Array.IndexOf(_fieldsList, field) - 1]};
+                    return new GameDto.FieldsUnderAttack(playerCards, fields);
                 }
             }
             case CardType.Right:
             {
                 if (field == CardIn.Field4)
                 {
-                    return new List<PlayerCard>() {enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field)};
+                    var playerCards = new List<PlayerCard>() {enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field)};
+                    var fields = new List<CardIn>() {field};
+                    return new GameDto.FieldsUnderAttack(playerCards, fields);
                 }
                 else
                 {
-                    return new List<PlayerCard>()
+                    var playerCards = new List<PlayerCard>()
                     {
                         enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field),
                         enemyPlayer.Cards.FirstOrDefault(pc =>
                             pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) + 1])
                     };
+                    var fields = new List<CardIn>() {field, _fieldsList[Array.IndexOf(_fieldsList, field) + 1]};
+                    return new GameDto.FieldsUnderAttack(playerCards, fields);
                 }
             }
             case CardType.All:
             {
                 if (field == CardIn.Field1)
                 {
-                    return new List<PlayerCard>()
+                    var playerCards = new List<PlayerCard>()
                     {
                         enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field),
                         enemyPlayer.Cards.FirstOrDefault(pc =>
                             pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) + 1])
                     };
+                    var fields = new List<CardIn>() {field, _fieldsList[Array.IndexOf(_fieldsList, field) + 1]};
+                    return new GameDto.FieldsUnderAttack(playerCards, fields);
                 }
                 else if (field == CardIn.Field4)
                 {
-                    return new List<PlayerCard>()
+                    var playerCards = new List<PlayerCard>()
                     {
                         enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field),
                         enemyPlayer.Cards.FirstOrDefault(pc =>
                             pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) - 1])
                     };
+                    var fields = new List<CardIn>() {field, _fieldsList[Array.IndexOf(_fieldsList, field) - 1]};
+                    return new GameDto.FieldsUnderAttack(playerCards, fields);
                 }
                 else
                 {
-                    return new List<PlayerCard>()
+                    var playerCards = new List<PlayerCard>()
                     {
                         enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field),
                         enemyPlayer.Cards.FirstOrDefault(pc =>
@@ -622,6 +637,8 @@ public class GameService : IGameService
                         enemyPlayer.Cards.FirstOrDefault(pc =>
                             pc.CardIn == _fieldsList[Array.IndexOf(_fieldsList, field) + 1])
                     };
+                    var fields = new List<CardIn>() {field, _fieldsList[Array.IndexOf(_fieldsList, field) - 1], _fieldsList[Array.IndexOf(_fieldsList, field) + 1]};
+                    return new GameDto.FieldsUnderAttack(playerCards, fields);
                 }
             }
             default:
@@ -655,7 +672,8 @@ public class GameService : IGameService
 
     private GameDto.CardBase GetEnemyField(CardIn field, Player enemyPlayer)
     {
-        var enemyCard = enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field && !pc.IsDead && pc.SideState == SideState.Front);
+        var enemyCard =
+            enemyPlayer.Cards.FirstOrDefault(pc => pc.CardIn == field && !pc.IsDead && pc.SideState == SideState.Front);
 
         if (enemyCard == null)
         {

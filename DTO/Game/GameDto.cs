@@ -62,12 +62,12 @@ public class GameDto
     }
     
     public record GameData([property: JsonProperty("playerData")] PlayerData PlayerData, [property: JsonProperty("enemyData")] EnemyData EnemyData);
-    
+    public record FieldsUnderAttack(ICollection<PlayerCard> PlayerCards, [property: JsonProperty("fields")]ICollection<CardIn> Fields);
     public record CardAttack([property: JsonProperty("field")] CardIn Field,
         [property: JsonProperty("attackingPlayerId")] int AttackingPlayerId,
         [property: JsonProperty("attackingCard")] PlayerCard AttackingCard,
         [property: JsonProperty("playerUnderAttackId")] int PlayerUnderAttackId,
-        [property: JsonProperty("fieldsUnderAttack")] ICollection<PlayerCard>
+        [property: JsonProperty("fieldsUnderAttack")] ICollection<CardIn>
             FieldsUnderAttack);
 
     public record CardIsDead([property: JsonProperty("field")] CardIn Field,
