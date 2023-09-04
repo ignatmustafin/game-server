@@ -29,8 +29,8 @@ services:
       - /home/poorman/dist:/home/client/dist
       - ./data/certbot/conf:/etc/letsencrypt
       - ./data/certbot/www:/var/www/certbot
-      - ../../js/poorman/dist:/client-app
-      - ../../js/poorman/src/assets:/client-app/assets-volumes
+      - /home/poorman/dist:/client-app
+      - /home/poorman/src/assets:/client-app/assets-volumes
     ports:
       - "80:80"
       - "443:443"
