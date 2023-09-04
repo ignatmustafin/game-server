@@ -9,8 +9,10 @@ services:
       - "5157:5157"
     depends_on:
       - postgres
+    volumes:
+      - ../../js/poorman/dist:/client-app
     command: sh -c "dotnet ef database update && dotnet /app/build/GameServer.dll"
-
+    
   postgres:
     container_name: game-server-postgres-dev
     image: postgres
@@ -26,6 +28,8 @@ services:
     image: nginx
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ../../js/poorman/dist:/client-app
+      - ../../js/poorman/src/assets:/client-app/assets-volumes
     ports:
       - "80:80"
     depends_on:
